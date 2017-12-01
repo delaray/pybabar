@@ -162,6 +162,8 @@ def find_wiki_out_neighbors(topic_name, conn=None):
 
 #------------------------------------------------------------------------------
 
+# Find topucs that are mutually linkeed to topic_name.
+
 def find_strongly_related_topics (topic_name, conn=None):
     conn = ensure_connection(conn)
     in_vertices = find_wiki_in_neighbors(topic_name, conn)
