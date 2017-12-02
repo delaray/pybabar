@@ -3,6 +3,8 @@ import os as os
 from scraper import get_related_wikipedia_topics
 from postgres import create_wiki_db_graph_tables, add_wiki_vertices, add_wiki_edges, count_wiki_vertices
 
+DEFAULT_CRAWL_DEPTH=2
+
 #-------------------------------------------------------------------------------
 # PROCEESS TOPIC
 #-------------------------------------------------------------------------------
@@ -37,13 +39,17 @@ def crawl_wiki(depth=2, root_topic='Elephant'):
         topics = next_topics
     print ("Total topiccs added: " + str(count_wiki_vertices()))
 
+#-------------------------------------------------------------------------------
+
+def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH):
+    create_wiki_db_graph_tables()
+    crawl_wiki(depth)
 
 #-------------------------------------------------------------------------------
 # Runtime
 #-------------------------------------------------------------------------------
 
-create_wiki_db_graph_tables()
-crawl_wiki(depth=2)
+crawl_wikipedia()
 
 #-------------------------------------------------------------------------------
 # End of File

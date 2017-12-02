@@ -103,14 +103,14 @@ def add_wiki_vertices(vertices, conn=None):
 
 def find_wiki_vertex(vertex_name, conn=None):
     if "'" in vertex_name:
-        return []
+        return None
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
         cur.execute("SELECT * FROM wiki_vertices " + \
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
-        return rows
+        return rows[0][0]
 
 #------------------------------------------------------------------------------
 
@@ -138,11 +138,9 @@ def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=No
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
-    if source_id==[] or target_id==[]:
+    if source_id==None or target_id==None:
         return None
     else:
-        source_id = source_id[0][0]
-        target_id = target_id[0][0]
         cur = conn.cursor()
         cur.execute("INSERT INTO wiki_edges (source, target, type) " +\
                     "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
@@ -163,11 +161,9 @@ def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
-    if source_id==[] or target_id==[]:
+    if source_id==None or target_id==None:
         return None
     else:
-        source_id = source_id[0][0]
-        target_id = target_id[0][0]
         cur = conn.cursor()
         cur.execute("SELECT * FROM wiki_edges " + \
                     "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
@@ -179,10 +175,9 @@ def find_wiki_edge(source_name, target_name, conn=None):
 def find_wiki_edges(source_name, edge_type, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
-    if source_id==[]:
+    if source_id==None:
         return None
     else:
-        source_id = source_id[0][0]
         cur = conn.cursor()
         cur.execute("SELECT * FROM wiki_edges " + \
                     "WHERE source=" + str(source_id) + "AND type='" + edge_type + "';")
@@ -204,26 +199,32 @@ def count_wiki_edges(conn=None):
 
 def find_wiki_in_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
-    topic_id = find_wiki_vertex(topic_name, conn)[0][0]    
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM wiki_edges as we " + \
-                "JOIN wiki_vertices as wv on we.source = wv.id " + \
-                "WHERE target=" + str(topic_id) + ";")
-    rows = cur.fetchall()
-    return [row[5] for row in rows]
+    topic_id = find_wiki_vertex(topic_name, conn)
+    if topic_id == None:
+        return []
+    else:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM wiki_edges as we " + \
+                    "JOIN wiki_vertices as wv on we.source = wv.id " + \
+                    "WHERE target=" + str(topic_id) + ";")
+        rows = cur.fetchall()
+        return [row[5] for row in rows]
 
 #------------------------------------------------------------------------------
 
 def find_wiki_out_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
-    topic_id = find_wiki_vertex(topic_name, conn)[0][0]    
+    topic_id = find_wiki_vertex(topic_name, conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM wiki_edges as we " + \
-                "JOIN wiki_vertices as wv on we.target = wv.id " + \
-                "WHERE source=" + str(topic_id) + ";")
-    rows = cur.fetchall()
-    return [row[5] for row in rows]
-
+    if topic_id == None:
+        return []
+    else:
+        cur.execute("SELECT * FROM wiki_edges as we " + \
+                    "JOIN wiki_vertices as wv on we.target = wv.id " + \
+                    "WHERE source=" + str(topic_id) + ";")
+        rows = cur.fetchall()
+        return [row[5] for row in rows]
+    
 #------------------------------------------------------------------------------
 
 # Find topics that are mutually linkeed to topic_name.
