@@ -12,7 +12,7 @@ More details coming soon...
 
 # Examples 
 
-1. Find the list of Wikipedia topics pointed to by the Elephant page...
+### 1. Find the list of Wikipedia topics pointed to by the Elephant page...
 
 In [43]: x= find_wiki_out_neighbors("Elephant")
 
@@ -25,7 +25,7 @@ In [46]: x
 Out[46]: ['A_Greek%E2%80%93English_Lexicon', 'Abdominal_cavity',
  'Aberdare_National_Park', 'Achaemenid_Empire', 'Adaptive_radiation', 'African_bush_elephant',..., 'Zygolophodon']
 
-2. Find the list of Wikipedia topics that point to the Elephant page...
+### 2. Find the list of Wikipedia topics that point to the Elephant page...
 
 In [47]: x= find_wiki_in_neighbors("Elephant")
 
@@ -37,7 +37,7 @@ Out[49]: 119
 In [50]: x
 Out[50]: ['African_bush_elephant', 'African_forest_elephant', 'Amebelodontidae', 'Anancidae', 'Anancus', 'Animal_track', 'Archaeobelodon', 'Asian_elephant', 'Babar_the_Elephant', 'Barytheriidae', 'Borneo_elephant', 'War_elephant', 'Woolly_mammoth', 'Working_animal', 'Year_of_the_Elephant', 'Zoo']
 
-3. Find the list of Wikipedia topics that are mutually linked to the Elephant page...
+### 3. Find the list of Wikipedia topics that are mutually linked to the Elephant page...
 
 
 In [51]: x = find_strongly_related_topics("Elephant")
