@@ -35,7 +35,7 @@ In [49]: len(x)
 Out[49]: 119
 
 In [50]: x
-Out[50]: ['African_bush_elephant', 'African_forest_elephant', 'Amebelodontidae', 'Anancidae', 'Anancus', 'Animal_track', 'Archaeobelodon', 'Asian_elephant', 'Babar_the_Elephant', 'Barytheriidae', 'Borneo_elephant', 'War_elephant', 'Woolly_mammoth', 'Working_animal', 'Year_of_the_Elephant', 'Zoo']
+Out[50]: ['African_bush_elephant', 'African_forest_elephant', 'Amebelodontidae', 'Anancidae', 'Anancus', 'Animal_track', 'Archaeobelodon', 'Asian_elephant', 'Babar_the_Elephant', 'Barytheriidae', 'Borneo_elephant',...,'War_elephant', 'Woolly_mammoth', 'Working_animal', 'Year_of_the_Elephant', 'Zoo']
 
 ### 3. Find the list of Wikipedia topics that are mutually linked to the Elephant page...
 

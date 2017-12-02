@@ -59,12 +59,15 @@ def create_wiki_db_graph_tables():
 #------------------------------------------------------------------------------
 
 def add_wiki_vertex(vertex_name, conn=None, commit_p=False):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    if find_wiki_vertex(vertex_name, conn) == []:
-        cur.execute("INSERT INTO wiki_vertices (name) VALUES ('" + vertex_name + "');")
-        if commit_p == True:
-            conn.commit()
+    if "'" in vertex_name:
+        return []
+    else:
+        conn = ensure_connection(conn)
+        cur = conn.cursor()
+        if find_wiki_vertex(vertex_name, conn) == []:
+            cur.execute("INSERT INTO wiki_vertices (name) VALUES ('" + vertex_name + "');")
+            if commit_p == True:
+                conn.commit()
 
 #------------------------------------------------------------------------------
 
@@ -77,12 +80,15 @@ def add_wiki_vertices(vertices, conn=None):
 #------------------------------------------------------------------------------
 
 def find_wiki_vertex(vertex_name, conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM wiki_vertices " + \
-                "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
-    rows = cur.fetchall()
-    return rows
+    if "'" in vertex_name:
+        return []
+    else:
+        conn = ensure_connection(conn)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM wiki_vertices " + \
+                    "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
+        rows = cur.fetchall()
+        return rows
 
 #------------------------------------------------------------------------------
 
