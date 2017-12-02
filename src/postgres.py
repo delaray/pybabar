@@ -1,4 +1,5 @@
 import psycopg2
+import nltk
 
 namedict = ({"first_name":"Joshua", "last_name":"Drake"},
             {"first_name":"Steven", "last_name":"Foo"},
@@ -114,13 +115,18 @@ DEFAULT_EDGE_TYPE = 'related'
 
 def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
     conn = ensure_connection(conn)
-    source_id = find_wiki_vertex(source_name, conn)[0][0]
-    target_id = find_wiki_vertex(target_name, conn)[0][0]
-    cur = conn.cursor()
-    cur.execute("INSERT INTO wiki_edges (source, target, edge_type) " +\
-                "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
-    if commit_p == True:
-        conn.commit()
+    source_id = find_wiki_vertex(source_name, conn)
+    target_id = find_wiki_vertex(target_name, conn)
+    if source_id==[] or target_id==[]:
+        return None
+    else:
+        source_id = source_id[0][0]
+        target_id = target_id[0][0]
+        cur = conn.cursor()
+        cur.execute("INSERT INTO wiki_edges (source, target, edge_type) " +\
+                    "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
+        if commit_p == True:
+            conn.commit()
 
 #------------------------------------------------------------------------------
 
@@ -134,13 +140,18 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
 
 def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
-    source_id = find_wiki_vertex(source_name, conn)[0][0]
-    target_id = find_wiki_vertex(target_name, conn)[0][0]
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM wiki_edges " + \
-                "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
-    rows = cur.fetchall()
-    return rows
+    source_id = find_wiki_vertex(source_name, conn)
+    target_id = find_wiki_vertex(target_name, conn)
+    if source_id==[] or target_id==[]:
+        return None
+    else:
+        source_id = source_id[0][0]
+        target_id = target_id[0][0]
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM wiki_edges " + \
+                    "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
+        rows = cur.fetchall()
+        return rows
 
 #------------------------------------------------------------------------------
 
@@ -168,7 +179,8 @@ def find_wiki_out_neighbors(topic_name, conn=None):
 
 #------------------------------------------------------------------------------
 
-# Find topucs that are mutually linkeed to topic_name.
+# Find topics that are mutually linkeed to topic_name.
+
 
 def find_strongly_related_topics (topic_name, conn=None):
     conn = ensure_connection(conn)
@@ -178,7 +190,34 @@ def find_strongly_related_topics (topic_name, conn=None):
 
 #------------------------------------------------------------------------------
 
-def count_wiki_edges():
+# Find _potential subtopics
+
+def find_potential_subtopics (topic_name, conn=None):
+    conn = ensure_connection(conn)
+    result = []
+    out_vertices = find_wiki_out_neighbors(topic_name, conn)
+    out_vertices = list(set(out_vertices))
+    for x in out_vertices:
+        if topic_name.lower() in x.lower():
+            result.append(x)
+    result.remove(topic_name)
+    return result
+
+#------------------------------------------------------------------------------
+
+def compute_wiki_subtopics(topic_name):
+    topics = find_potential_subtopics(topic_name)
+    subtopics = []
+    for topic1 in topics:
+        topic2 = topic1.replace('_', ' ')
+        tokens = nltk.word_tokenize(topic2)
+        if tokens[-1].lower() == topic_name.lower():
+            subtopics.append(topic1)
+    return subtopics
+
+#------------------------------------------------------------------------------
+
+def count_wiki_edges(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT count(*) FROM wiki_edges ")

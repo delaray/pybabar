@@ -1,7 +1,7 @@
 import os as os
 
 from scraper import get_related_wikipedia_topics
-from wikidb import create_wiki_db_graph_tables, add_wiki_vertices, add_wiki_edges, count_wiki_vertices
+from postgres import create_wiki_db_graph_tables, add_wiki_vertices, add_wiki_edges, count_wiki_vertices
 
 #-------------------------------------------------------------------------------
 # PROCEESS TOPIC
