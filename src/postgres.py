@@ -25,33 +25,54 @@ def ensure_connection(conn=None):
 # Wiki DB Table Creation
 #------------------------------------------------------------------------------
 
-create_vertices_str = "CREATE TABLE wiki_vertices(id serial NOT NULL, name character varying, " + \
+create_vertices_str = "CREATE TABLE wiki_vertices(id serial NOT NULL, " + \
+                      "name character varying, " + \
+                      "weight integer DEFAULT 0, " + \
                       "CONSTRAINT vertextid PRIMARY KEY (id));"
 
-def create_vertices_table(cur):
+def create_vertices_table(conn):
+    cur = conn.cursor()
     print ("Creating Wikipedia Vertices Table...")
     cur.execute("DROP TABLE IF EXISTS wiki_vertices;")
     cur.execute(create_vertices_str)
 
 #------------------------------------------------------------------------------
 
-create_edges_str = "CREATE TABLE wiki_edges (id serial NOT NULL, source integer NOT NULL," + \
-                   "target integer NOT NULL, edge_type character varying, " + \
+def create_vertices_table_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON wiki_vertices ((lower(name)));")
+    conn.commit()
+    
+#------------------------------------------------------------------------------
+
+create_edges_str = "CREATE TABLE wiki_edges (id serial NOT NULL, " + \
+                   "source integer NOT NULL," + \
+                   "target integer NOT NULL, " + \
+                   "type character varying, " + \
+                   "weight integer DEFAULT 0, " + \
                    "CONSTRAINT edgeid PRIMARY KEY (id));"
 
-def create_edges_table(cur):
+def create_edges_table(conn):
+    cur = conn.cursor()
     print ("Creating Wikipedia Edges Table...")
     cur.execute("DROP TABLE IF EXISTS wiki_edges;")
     cur.execute(create_edges_str)
+
+#------------------------------------------------------------------------------
+
+def create_edges_table_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON wiki_edges (source);")
+    cur.execute("CREATE INDEX ON wiki_edges (target);")
+    conn.commit()
     
 #------------------------------------------------------------------------------
 
 def create_wiki_db_graph_tables():
     conn = wikidb_connect()
-    cur = conn.cursor()
-    create_vertices_table(cur)
+    create_vertices_table(conn)
     conn.commit()
-    create_edges_table(cur)
+    create_edges_table(conn)
     conn.commit()
     return None 
 
@@ -123,7 +144,7 @@ def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=No
         source_id = source_id[0][0]
         target_id = target_id[0][0]
         cur = conn.cursor()
-        cur.execute("INSERT INTO wiki_edges (source, target, edge_type) " +\
+        cur.execute("INSERT INTO wiki_edges (source, target, type) " +\
                     "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
         if commit_p == True:
             conn.commit()
@@ -164,7 +185,7 @@ def find_wiki_edges(source_name, edge_type, conn=None):
         source_id = source_id[0][0]
         cur = conn.cursor()
         cur.execute("SELECT * FROM wiki_edges " + \
-                    "WHERE source=" + str(source_id) + "AND edge_type='" + edge_type + "';")
+                    "WHERE source=" + str(source_id) + "AND type='" + edge_type + "';")
         rows = cur.fetchall()
         return rows
 
