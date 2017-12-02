@@ -71,8 +71,9 @@ def create_edges_table_indexes(conn):
 def create_wiki_db_graph_tables():
     conn = wikidb_connect()
     create_vertices_table(conn)
-    conn.commit()
+    create_vertices_table_indexes
     create_edges_table(conn)
+    create_edges_table_indexes()
     conn.commit()
     return None 
 
@@ -283,7 +284,6 @@ def add_wiki_subtopics(topic_name, conn=None):
 #------------------------------------------------------------------------------
 
 # create_wiki_db_graph_tables()
-
 
 #------------------------------------------------------------------------------
 # End of File
