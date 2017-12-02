@@ -2,7 +2,7 @@ import os as os
 
 from scraper import get_related_wikipedia_topics
 from postgres import create_wiki_db_graph_tables, count_wiki_vertices
-from postgres import add_wiki_vertices, add_wiki_edges, 
+from postgres import add_wiki_vertices, add_wiki_edges 
 
 DEFAULT_CRAWL_DEPTH=2
 
@@ -50,7 +50,7 @@ def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH):
 # Runtime
 #-------------------------------------------------------------------------------
 
-crawl_wikipedia()
+crawl_wikipedia(3)
 
 #-------------------------------------------------------------------------------
 # End of File

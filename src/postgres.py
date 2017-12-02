@@ -71,9 +71,9 @@ def create_edges_table_indexes(conn):
 def create_wiki_db_graph_tables():
     conn = wikidb_connect()
     create_vertices_table(conn)
-    create_vertices_table_indexes
+    create_vertices_table_indexes(conn)
     create_edges_table(conn)
-    create_edges_table_indexes()
+    create_edges_table_indexes(conn)
     conn.commit()
     return None 
 
@@ -87,7 +87,7 @@ def add_wiki_vertex(vertex_name, conn=None, commit_p=False):
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
-        if find_wiki_vertex(vertex_name, conn) == []:
+        if find_wiki_vertex(vertex_name, conn) == None:
             cur.execute("INSERT INTO wiki_vertices (name) VALUES ('" + vertex_name + "');")
             if commit_p == True:
                 conn.commit()
@@ -111,7 +111,10 @@ def find_wiki_vertex(vertex_name, conn=None):
         cur.execute("SELECT * FROM wiki_vertices " + \
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
-        return rows[0][0]
+        if rows == []:
+            return None
+        else:
+            return rows[0][0]
 
 #------------------------------------------------------------------------------
 
@@ -209,7 +212,7 @@ def find_wiki_in_neighbors(topic_name, conn=None):
                     "JOIN wiki_vertices as wv on we.source = wv.id " + \
                     "WHERE target=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return [row[5] for row in rows]
+        return [row[6] for row in rows]
 
 #------------------------------------------------------------------------------
 
@@ -224,7 +227,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
                     "JOIN wiki_vertices as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return [row[5] for row in rows]
+        return [row[6] for row in rows]
     
 #------------------------------------------------------------------------------
 
