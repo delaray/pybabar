@@ -155,6 +155,32 @@ def find_wiki_edge(source_name, target_name, conn=None):
 
 #------------------------------------------------------------------------------
 
+def find_wiki_edges(source_name, edge_type, conn=None):
+    conn = ensure_connection(conn)
+    source_id = find_wiki_vertex(source_name, conn)
+    if source_id==[]:
+        return None
+    else:
+        source_id = source_id[0][0]
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM wiki_edges " + \
+                    "WHERE source=" + str(source_id) + "AND edge_type='" + edge_type + "';")
+        rows = cur.fetchall()
+        return rows
+
+#------------------------------------------------------------------------------
+
+def count_wiki_edges(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT count(*) FROM wiki_edges ")
+    rows = cur.fetchall()
+    return rows[0][0]
+
+#------------------------------------------------------------------------------
+# IN and OUT Neighbors
+#------------------------------------------------------------------------------
+
 def find_wiki_in_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)[0][0]    
@@ -181,13 +207,14 @@ def find_wiki_out_neighbors(topic_name, conn=None):
 
 # Find topics that are mutually linkeed to topic_name.
 
-
 def find_strongly_related_topics (topic_name, conn=None):
     conn = ensure_connection(conn)
     in_vertices = find_wiki_in_neighbors(topic_name, conn)
     out_vertices = find_wiki_out_neighbors(topic_name, conn)
     return list(set(in_vertices) & set(out_vertices))
 
+#------------------------------------------------------------------------------
+# SUBTOPICS
 #------------------------------------------------------------------------------
 
 # Find _potential subtopics
@@ -205,8 +232,9 @@ def find_potential_subtopics (topic_name, conn=None):
 
 #------------------------------------------------------------------------------
 
-def compute_wiki_subtopics(topic_name):
-    topics = find_potential_subtopics(topic_name)
+def compute_wiki_subtopics(topic_name, conn=None):
+    conn = ensure_connection(conn)
+    topics = find_potential_subtopics(topic_name, conn)
     subtopics = []
     for topic1 in topics:
         topic2 = topic1.replace('_', ' ')
@@ -217,13 +245,17 @@ def compute_wiki_subtopics(topic_name):
 
 #------------------------------------------------------------------------------
 
-def count_wiki_edges(conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT count(*) FROM wiki_edges ")
-    rows = cur.fetchall()
-    return rows[0][0]
+# This computes the subtopics of topic_name and adds subtopic and supertopic
+#  edges to the graph.
 
+def add_wiki_subtopics(topic_name, conn=None):
+    conn = ensure_connection(conn)
+    subtopics = compute_wiki_subtopics (topic_name, conn=None)
+    for subtopic in subtopics:
+        add_wiki_edge(subtopic, topic_name, edge_type='subtopic', conn=conn)
+        add_wiki_edge(topic_name, subtopic, edge_type='supertopic', conn=conn)
+    conn.commit()
+        
 #------------------------------------------------------------------------------
 # Run Time
 #------------------------------------------------------------------------------
