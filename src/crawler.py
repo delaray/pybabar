@@ -1,4 +1,4 @@
-import os as os
+import sys
 
 from scraper import get_related_wikipedia_topics
 from postgres import create_wiki_db_graph_tables, count_wiki_vertices
@@ -42,15 +42,30 @@ def crawl_wiki(depth=2, root_topic='Elephant'):
 
 #-------------------------------------------------------------------------------
 
-def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH):
-    create_wiki_db_graph_tables()
+def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH, reset=False):
+    if reset==True:
+        create_wiki_db_graph_tables()
     crawl_wiki(depth)
 
 #-------------------------------------------------------------------------------
 # Runtime
 #-------------------------------------------------------------------------------
 
-crawl_wikipedia(3)
+#crawl_wikipedia(3)
+
+def main():
+    args = sys.argv
+    depth = int(args[1])
+    reset = args[2]
+    print (depth)
+    reset = True if reset=="True" else False
+    print (reset)
+    crawl_wikipedia(depth, reset)
+  
+#-------------------------------------------------------------------------------
+
+if __name__== "__main__":
+  main()
 
 #-------------------------------------------------------------------------------
 # End of File
