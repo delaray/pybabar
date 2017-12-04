@@ -1,6 +1,8 @@
 import psycopg2
 import nltk
-from clustering import jaccard_index, generate_distance_matrix
+
+import clustering
+#from clustering import generate_topics_distance_matrix
 
 namedict = ({"first_name":"Joshua", "last_name":"Drake"},
             {"first_name":"Steven", "last_name":"Foo"},
@@ -293,24 +295,31 @@ def compare_topics (topic1, topic2, conn=None):
     conn = ensure_connection(conn)
     l1 = find_wiki_out_neighbors(topic1, conn)
     l2 = find_wiki_out_neighbors(topic2, conn)
-    return jaccard_index(l1, l2)
+    return clustering.jaccard_index(l1, l2)
+
 
 #------------------------------------------------------------------------------
 
-def generate_comparator (conn=None):
-    def cfn (topic1, topic2):
-        c = ensure_connection(conn)
-        return compare_topics (topic1, topic2, c)
-    return cfn
+def pdm_worker (l1, l2, procnum, return_dict):
+    m, i = clustering.generate_topics_distance_matrix (l1, l2)
+    return_dict[procnum] = m
+
+#------------------------------------------------------------------------------
+
+# def generate_comparator (conn=None):
+#     def cfn (topic1, topic2):
+#         c = ensure_connection(conn)
+#         return compare_topics (topic1, topic2, c)
+#     return cfn
 
 #------------------------------------------------------------------------------
 
 # Note: <topics> is a list of topic names.
 
-def compute_topics_distance_matrix (topics, conn=None):
-    cfn = generate_comparator(conn)
-    dm = generate_distance_matrix (topics, cfn)
-    return dm
+# def compute_topics_distance_matrix (topics, conn=None):
+#     cfn = generate_comparator(conn)
+#     dm = generate_distance_matrix (topics, topics, cfn)
+#     return dm
     
 #------------------------------------------------------------------------------
 # Run Time
