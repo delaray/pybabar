@@ -33,9 +33,8 @@ def get_jaccard_distance (e1, e2, matrix, indices):
 
 # TODO: Use an object to keep the matri and indices together
 
-def generate_topics_distance_matrix (topics1, topics2, conn=None):
-    # Generate a dictioary of indice to aaccess values in the matrix
-    indices = dict(list(zip(topics1, range(len(topics1)))))
+def generate_distance_matrix (topics1, topics2, conn=None):
+    conn = postgres.ensure_connection(conn)
     # Populate the matrix
     matrix = []
     for topic1 in topics1:
@@ -43,30 +42,41 @@ def generate_topics_distance_matrix (topics1, topics2, conn=None):
         for topic2 in topics2:
             row.append(postgres.compare_topics(topic1, topic2, conn))
         matrix.append(row)
-    return matrix, indices
+    # Create and return a DataFrame
+    df = pd.DataFrame(matrix, index=topics1, columns=topics2)
+    return df
 
-def verify_distance_matrix(m):
-    valid = True
-    for i in range(len(m)):
-        for j in range(len(m)):
-            if i==j and not m[i][j]==1:
-                valid = False
-    return valid
+# def verify_distance_matrix(m):
+#     valid = True
+#     for i in range(len(m)):
+#         for j in range(len(m)):
+#             if i==j and not m[i][j]==1:
+#                 valid = False
+#     return valid
     
 #------------------------------------------------------------------------
 # Generate Distance Matrix (parallel version)
+#------------------------------------------------------------------------
+
+def reassemble_matrix(quadrants):
+    q1 = quadrants[0]
+    q2 = quadrants[3]
+    q3 = quadrants[1]
+    q4 = quadrants[2]
+    c1 = pd.concat([q1, q2], axis=0)
+    c2 = pd.concat([q3, q4], axis=0)
+    dm = pd.concat([c1, c2], axis=1)
+    print(dm)
+    return dm
+ 
 #------------------------------------------------------------------------
 
 # Process four quadrants of the matrix in parallel.
 
 def pgenerate_distance_matrix (topics):
 
-    # Generate a dictioary of indice to aaccess values in the matrix
-    indices = dict(list(zip(topics, range(len(topics)))))
-
     # Partition topics
-    tcount = round(len(topics))
-    midpoint = round(len(topics))
+    midpoint = round(len(topics) / 2)
     l1 = topics[:midpoint]
     l2 = topics[midpoint:]
 
@@ -95,13 +105,7 @@ def pgenerate_distance_matrix (topics):
 
     # Reassemble the matrix...
     quadrants = return_dict.values()
-    q1 = pd.DataFrame(quadrants[0])
-    q2 = pd.DataFrame(quadrants[2])
-    q3 = pd.DataFrame(quadrants[1])
-    q4 = pd.DataFrame(quadrants[3])
-    c1 = pd.concat([q1, q2], axis=0)
-    c2 = pd.concat([q3, q4], axis=0)
-    dm = pd.concat([c1, c2], axis=1)
+    dm = reassemble_matrix (quadrants)
     
     # Return the distance matrix
     return dm

@@ -148,11 +148,12 @@ def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=No
     if source_id==None or target_id==None:
         return None
     else:
-        cur = conn.cursor()
-        cur.execute("INSERT INTO wiki_edges (source, target, type) " +\
-                    "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
-        if commit_p == True:
-            conn.commit()
+        if find_wiki_edge_by_id(source_id, vertex_id, conn) == None:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO wiki_edges (source, target, type) " +\
+                        "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
+            if commit_p == True:
+                conn.commit()
 
 #------------------------------------------------------------------------------
 
@@ -164,6 +165,15 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
 
 #------------------------------------------------------------------------------
 
+def find_wiki_edge_by_id(source_id, target_id, conn=None):
+    conn = ensure_connection(conn)
+    cur.execute("SELECT * FROM wiki_edges " + \
+                "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
+    rows = cur.fetchall()
+    return rows
+
+#------------------------------------------------------------------------------
+
 def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
@@ -171,11 +181,7 @@ def find_wiki_edge(source_name, target_name, conn=None):
     if source_id==None or target_id==None:
         return None
     else:
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM wiki_edges " + \
-                    "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
-        rows = cur.fetchall()
-        return rows
+        return find_wiki_edge_by_id(source_id, target_id, conn)
 
 #------------------------------------------------------------------------------
 
@@ -215,7 +221,7 @@ def find_wiki_in_neighbors(topic_name, conn=None):
                     "JOIN wiki_vertices as wv on we.source = wv.id " + \
                     "WHERE target=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return [row[6] for row in rows]
+        return list(set([row[6] for row in rows]))
 
 #------------------------------------------------------------------------------
 
@@ -230,7 +236,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
                     "JOIN wiki_vertices as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return [row[6] for row in rows]
+        return list(set([row[6] for row in rows]))
     
 #------------------------------------------------------------------------------
 
@@ -297,11 +303,11 @@ def compare_topics (topic1, topic2, conn=None):
     l2 = find_wiki_out_neighbors(topic2, conn)
     return clustering.jaccard_index(l1, l2)
 
-
 #------------------------------------------------------------------------------
 
 def pdm_worker (l1, l2, procnum, return_dict):
-    m, i = clustering.generate_topics_distance_matrix (l1, l2)
+    conn = ensure_connection()
+    m = clustering.generate_distance_matrix (l1, l2, conn)
     return_dict[procnum] = m
 
 #------------------------------------------------------------------------------
