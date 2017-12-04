@@ -21,6 +21,11 @@ def jaccard_index (l1, l2):
         return nominator * 1.0 / denominator
 
 #------------------------------------------------------------------------
+
+def get_jaccard_distance (e1, e2, matrix, indices):
+    return matrix[indices[e1]][indices[e2]]
+
+#------------------------------------------------------------------------
 # Generate Distance Matrix 
 #------------------------------------------------------------------------
 
@@ -30,7 +35,6 @@ def generate_distance_matrix (topics, comparator):
         row=[]
         for topic2 in topics:
             row.append(comparator(topic1, topic2))
-        print (row)
         matrix.append(row)
     return matrix
 
