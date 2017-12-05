@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup, SoupStrainer
-import urllib3
-http = urllib3.PoolManager()
+
+#import urllib3
+#http = urllib3.PoolManager()
+
 import requests
 
 #--------------------------------------------------------------------

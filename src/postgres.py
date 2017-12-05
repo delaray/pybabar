@@ -2,10 +2,12 @@ import psycopg2
 import nltk
 
 import clustering
-#from clustering import generate_topics_distance_matrix
 
-vertex_table_name = 'old_wiki_vertices'
-edge_table_name = 'old_wiki_edges'
+#vertex_table_name = 'old_wiki_vertices'
+vertex_table_name = 'wiki_vertices'
+
+#edge_table_name = 'old_wiki_edges'
+edge_table_name = 'wiki_edges'
 
 #------------------------------------------------------------------------------
 # DB Connection
@@ -29,7 +31,7 @@ def ensure_connection(conn=None):
 create_vertices_str = "CREATE TABLE " + vertex_table_name + " (id serial NOT NULL, " + \
                       "name character varying, " + \
                       "weight integer DEFAULT 0, " + \
-                      "CONSTRAINT vertext_id PRIMARY KEY (id));"
+                      "CONSTRAINT vertex_id PRIMARY KEY (id));"
 
 def create_vertices_table(conn):
     cur = conn.cursor()
@@ -126,10 +128,13 @@ def vertex_name(vertex_id,  conn=None):
     rows = cur.fetchall()
     return rows[0][1]
 
+#------------------------------------------------------------------------------
+
 def count_wiki_vertices(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT count(*) FROM " + vertex_table_name)
+    # cur.execute("SELECT count(*) FROM " + vertex_table_name)
+    cur.execute("SELECT count(*) FROM wiki_vertices")
     rows = cur.fetchall()
     return rows[0][0]
 
@@ -169,7 +174,10 @@ def find_wiki_edge_by_id(source_id, target_id, conn=None):
     cur.execute("SELECT * FROM " + edge_table_name + " " + \
                 "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
     rows = cur.fetchall()
-    return rows
+    if rows==[]:
+        return None
+    else:
+        return rows
 
 #------------------------------------------------------------------------------
 
@@ -201,12 +209,13 @@ def find_wiki_edges(source_name, edge_type, conn=None):
 def count_wiki_edges(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT count(*) FROM " + edge_table_name)
+    # cur.execute("SELECT count(*) FROM " + edge_table_name)
+    cur.execute("SELECT count(*) FROM wiki_edges")
     rows = cur.fetchall()
     return rows[0][0]
 
 #------------------------------------------------------------------------------
-# IN and OUT Neighbors
+# IN Neighbors and OUT Neighbors
 #------------------------------------------------------------------------------
 
 def find_wiki_in_neighbors(topic_name, conn=None):
@@ -216,7 +225,7 @@ def find_wiki_in_neighbors(topic_name, conn=None):
         return []
     else:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + edge_table_name + " " + \
+        cur.execute("SELECT * FROM " + edge_table_name + " as we " + \
                     "JOIN " + vertex_table_name + " as wv on we.source = wv.id " + \
                     "WHERE target=" + str(topic_id) + ";")
         rows = cur.fetchall()
@@ -237,6 +246,8 @@ def find_wiki_out_neighbors(topic_name, conn=None):
         rows = cur.fetchall()
         return list(set([row[6] for row in rows]))
     
+#------------------------------------------------------------------------------
+# Strongly Related Topics
 #------------------------------------------------------------------------------
 
 # Find topics that are mutually linkeed to topic_name.
