@@ -2,7 +2,7 @@
 # CLUSTERING
 #------------------------------------------------------------------------
 
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, freeze_support
 import pandas as pd
 import postgres
 
@@ -60,9 +60,9 @@ def generate_distance_matrix (topics1, topics2, conn=None):
 
 def reassemble_matrix(quadrants):
     q1 = quadrants[0]
-    q2 = quadrants[3]
-    q3 = quadrants[1]
-    q4 = quadrants[2]
+    q2 = quadrants[1]
+    q3 = quadrants[2]
+    q4 = quadrants[3]
     c1 = pd.concat([q1, q2], axis=0)
     c2 = pd.concat([q3, q4], axis=0)
     dm = pd.concat([c1, c2], axis=1)
@@ -86,6 +86,7 @@ def pgenerate_distance_matrix (topics):
 
     # Run four jobs, one for each quadrant of the matrix.
     jobs = [] 
+    freeze_support()
     p1 = Process(target=postgres.pdm_worker, args=(l1, l1, 1, return_dict))
     jobs.append(p1)
     p1.start()
