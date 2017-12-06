@@ -28,6 +28,21 @@ def get_jaccard_distance (e1, e2, matrix, indices):
     return matrix[indices[e1]][indices[e2]]
 
 #------------------------------------------------------------------------
+# Cluster Class
+#------------------------------------------------------------------------
+
+class Cluster:
+
+    def __init__(self, members,):
+        self.members = members
+
+    def add_member(self, member):
+        self.members.append(member)
+
+    def member_p (self, elmt):
+        return elmt in self.members
+
+#------------------------------------------------------------------------
 # Generate Distance Matrix (serial version)
 #------------------------------------------------------------------------
 
