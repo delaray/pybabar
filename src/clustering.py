@@ -6,7 +6,7 @@ from multiprocessing import Process, Manager, freeze_support
 import pandas as pd
 import postgres
 
-DFAULT_THRESHOLD=0.25
+DEFAULT_THRESHOLD=1
 
 #------------------------------------------------------------------------
 # Jaccard Index
@@ -20,27 +20,36 @@ def jaccard_index (l1, l2):
         s2 = set(l2)
         nominator = len(s1.intersection(s2))
         denominator = len(s1.union(s2))
-        return nominator * 1.0 / denominator
+        return nominator * 100.0 / denominator
 
 #------------------------------------------------------------------------
 
 def get_jaccard_distance (e1, e2, matrix, indices):
     return matrix[indices[e1]][indices[e2]]
+        
+#------------------------------------------------------------------------------
+# Comparing Topics
+#------------------------------------------------------------------------------
+
+# Note: Topic1 and Topic2 are vertex namees rather than id's.
+
+def compare_topics (topic1, topic2, conn=None):
+    conn = ensure_connection(conn)
+    l1 = find_wiki_out_neighbors(topic1, conn)
+    l2 = find_wiki_out_neighbors(topic2, conn)
+    return jaccard_index(l1, l2)
+
+
 
 #------------------------------------------------------------------------
-# Cluster Class
-#------------------------------------------------------------------------
 
-class Cluster:
-
-    def __init__(self, members,):
-        self.members = members
-
-    def add_member(self, member):
-        self.members.append(member)
-
-    def member_p (self, elmt):
-        return elmt in self.members
+def topic_belongs_in_cluster_p(topic, cluster, threshold=DEFAULT_THRESHOLD):
+    belongs = True
+    for x in cluster.members:
+        if compare_topics(topic, x) < threshold:
+            belongs=False
+            break
+    return belongs
 
 #------------------------------------------------------------------------
 # Generate Distance Matrix (serial version)
@@ -55,7 +64,7 @@ def generate_distance_matrix (topics1, topics2, conn=None):
     for topic1 in topics1:
         row=[]
         for topic2 in topics2:
-            row.append(postgres.compare_topics(topic1, topic2, conn))
+            row.append(compare_topics(topic1, topic2, conn))
         matrix.append(row)
     # Create and return a DataFrame
     df = pd.DataFrame(matrix, index=topics1, columns=topics2)
@@ -81,7 +90,6 @@ def reassemble_matrix(quadrants):
     c1 = pd.concat([q1, q2], axis=0)
     c2 = pd.concat([q3, q4], axis=0)
     dm = pd.concat([c1, c2], axis=1)
-    print(dm)
     return dm
  
 #------------------------------------------------------------------------
@@ -126,19 +134,42 @@ def pgenerate_distance_matrix (topics):
     # Return the distance matrix
     return dm
 
+
+#------------------------------------------------------------------------
+# Cluster Class
+#------------------------------------------------------------------------
+
+class Cluster:
+
+    def __init__(self, members, name=""):
+        self.name = name
+        self.members = members
+
+    def add_member(self, member):
+        self.members.append(member)
+
+    def member_p (self, elmt):
+        return elmt in self.members
+
 #------------------------------------------------------------------------
 # SR Clustering
 #------------------------------------------------------------------------
 
-def sr_clustering(l, threshold=DFAULT_THRESHOLD):
+def sr_clustering(topics, threshold=DEFAULT_THRESHOLD):
     clusters = []
-    for elmt in l:
-        None
-
-def foo (a):
-    def bar(b):
-        return a + b
-    return bar
+    cluster_count = 0
+    for topic in topics:
+        found = False
+        for cluster in clusters:
+            if topic_belongs_in_cluster_p(topic, cluster):
+                cluster.add_member(topic)
+                found = True
+                break
+        if found==False:
+            cluster_count += 1
+            new_cluster = Cluster([topic], "Cluster " + str(cluster_count))
+            clusters.append (new_cluster)
+    return clusters
         
 #------------------------------------------------------------------------
 # End of File

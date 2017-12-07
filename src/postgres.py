@@ -300,18 +300,6 @@ def add_wiki_subtopics(topic_name, conn=None):
         add_wiki_edge(subtopic, topic_name, edge_type='subtopic', conn=conn)
         add_wiki_edge(topic_name, subtopic, edge_type='supertopic', conn=conn)
     conn.commit()
-        
-#------------------------------------------------------------------------------
-# Comparing Topics
-#------------------------------------------------------------------------------
-
-# Note: Topic1 and Topic2 are vertex namees rather than id's.
-
-def compare_topics (topic1, topic2, conn=None):
-    conn = ensure_connection(conn)
-    l1 = find_wiki_out_neighbors(topic1, conn)
-    l2 = find_wiki_out_neighbors(topic2, conn)
-    return clustering.jaccard_index(l1, l2)
 
 #------------------------------------------------------------------------------
 
