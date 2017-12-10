@@ -303,10 +303,37 @@ def add_wiki_subtopics(topic_name, conn=None):
 
 #------------------------------------------------------------------------------
 
+def subtopic_p (topic1, topic2):
+    topic =  topic2.replace('_', ' ')
+    tokens = nltk.word_tokenize(topic)
+    subtopicp = True
+    for t in tokens:
+        if not t.lower() in topic1.lower():
+            subtopicp = False
+    return subtopicp
+
+#------------------------------------------------------------------------------
+# Root Topics
+#------------------------------------------------------------------------------
+
+# Current finds all topic names that do not contain an underscore. This wwill be 
+# be used to seed the different subtopic hierarchies.
+
+def find_wiki_root_topics(conn=None):
+    conn = ensure_connection(conn) 
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + vertex_table_name + " as wv " + \
+                "WHERE wv.name NOT SIMILAR TO '%\_%'")
+    rows = cur.fetchall()
+    return [row[1] for row in rows]
+
+#------------------------------------------------------------------------------
+
 def pdm_worker (l1, l2, procnum, return_dict):
     conn = ensure_connection()
     m = clustering.generate_distance_matrix (l1, l2, conn)
     return_dict[procnum] = m
+
 
 #------------------------------------------------------------------------------
 

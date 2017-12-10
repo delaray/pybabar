@@ -2,9 +2,14 @@
 # CLUSTERING
 #------------------------------------------------------------------------
 
+# Python modules
 from multiprocessing import Process, Manager, freeze_support
 import pandas as pd
+import pprint
+
+# Pybabar
 import postgres
+
 
 DEFAULT_THRESHOLD=1
 
@@ -151,6 +156,7 @@ class Cluster:
     def member_p (self, elmt):
         return elmt in self.members
 
+
 #------------------------------------------------------------------------
 # SR Clustering
 #------------------------------------------------------------------------
@@ -170,7 +176,14 @@ def sr_clustering(topics, threshold=DEFAULT_THRESHOLD):
             new_cluster = Cluster([topic], "Cluster " + str(cluster_count))
             clusters.append (new_cluster)
     return clusters
-        
+
+#------------------------------------------------------------------------
+
+def show_clusters(clusters):
+    pp = pprint.PrettyPrinter(indent=4)
+    for c in clusters:
+        pp.pprint(c.members)
+    
 #------------------------------------------------------------------------
 # End of File
 #------------------------------------------------------------------------

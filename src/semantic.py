@@ -1,5 +1,6 @@
 import gensim
 
+# Google pre_traineed model:
 data_file =  'c:\\Projects\\Python\\data\\GoogleNews-vectors-negative300.bin'
 
 # Load Google's pre-trained Word2Vec model.
