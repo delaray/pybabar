@@ -1,7 +1,7 @@
 import psycopg2
 import nltk
 
-import clustering
+#import clustering
 
 #vertex_table_name = 'old_wiki_vertices'
 vertex_table_name = 'wiki_vertices'
