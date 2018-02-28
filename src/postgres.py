@@ -7,7 +7,7 @@ import nltk
 vertex_table_name = 'wiki_vertices'
 
 #edge_table_name = 'old_wiki_edges'
-edge_table_name = 'wiki_edges'
+edge_table_name_prefix = 'wiki_edges_'
 
 #------------------------------------------------------------------------------
 # DB Connection
@@ -25,7 +25,7 @@ def ensure_connection(conn=None):
     return(conn)
 
 #------------------------------------------------------------------------------
-# Wiki DB Table Creation
+# Wiki DB Vertex Table Creation
 #------------------------------------------------------------------------------
 
 create_vertices_str = "CREATE TABLE " + vertex_table_name + " (id serial NOT NULL, " + \
@@ -47,27 +47,38 @@ def create_vertices_table_indexes(conn):
     conn.commit()
     
 #------------------------------------------------------------------------------
+# Wiki DB Edge Creation
+#------------------------------------------------------------------------------
 
-create_edges_str = "CREATE TABLE wiki_edges (id serial NOT NULL, " + \
-                   "source integer NOT NULL," + \
-                   "target integer NOT NULL, " + \
-                   "type character varying, " + \
-                   "weight integer DEFAULT 0, " + \
-                   "CONSTRAINT edge_id PRIMARY KEY (id));"
+def edge_table_name(letter):
+    return edge_table_name_prefix + letter
+    
+def create_edges_table_str (letter):
+    return "CREATE TABLE " + \
+        edge_table_name(letter) + \
+        "(id serial NOT NULL, " + \
+        "source integer NOT NULL," + \
+        "target integer NOT NULL, " + \
+        "type character varying, " + \
+        "weight integer DEFAULT 0, " + \
+        "CONSTRAINT edge_id PRIMARY KEY (id));"
 
-def create_edges_table(conn):
+# Create an edge table for each letter of the alphabet.
+
+def create_edge_tables(conn):
     cur = conn.cursor()
-    print ("Creating Wikipedia Edges Table...")
-    cur.execute("DROP TABLE IF EXISTS " + edge_table_name + ";")
-    cur.execute(create_edges_str)
+    print ("Creating Wikipedia Edge Tables...")
+    for letter in list(string.ascii_uppercase):
+        cur.execute("DROP TABLE IF EXISTS " + edge_table_name(letter) + ";")
+        cur.execute(create_edge_table_str(letter))
 
 #------------------------------------------------------------------------------
 
 def create_edges_table_indexes(conn):
     cur = conn.cursor()
-    cur.execute("CREATE INDEX ON " + edge_table_name + " (source);")
-    cur.execute("CREATE INDEX ON " + edge_table_name + " (target);")
-    conn.commit()
+    for letter in list(string.ascii_uppercase):
+        cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (source);")
+        cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (target);")
     
 #------------------------------------------------------------------------------
 
@@ -75,8 +86,8 @@ def create_wiki_db_graph_tables():
     conn = wikidb_connect()
     create_vertices_table(conn)
     create_vertices_table_indexes(conn)
-    create_edges_table(conn)
-    create_edges_table_indexes(conn)
+    create_edge_tables(conn)
+    create_edge_tables_indexes(conn)
     conn.commit()
     return None 
 
