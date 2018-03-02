@@ -1,5 +1,6 @@
 import psycopg2
 import nltk
+import string
 
 #import clustering
 
@@ -25,7 +26,7 @@ def ensure_connection(conn=None):
     return(conn)
 
 #------------------------------------------------------------------------------
-# Wiki DB Vertex Table Creation
+# Wiki DB Vertex Table Creationo
 #------------------------------------------------------------------------------
 
 create_vertices_str = "CREATE TABLE " + vertex_table_name + " (id serial NOT NULL, " + \
@@ -47,13 +48,16 @@ def create_vertices_table_indexes(conn):
     conn.commit()
     
 #------------------------------------------------------------------------------
-# Wiki DB Edge Creation
+# Wiki DB Edge Tables Creation
 #------------------------------------------------------------------------------
 
+def letters():
+    return list(string.ascii_lowercase)
+    
 def edge_table_name(letter):
     return edge_table_name_prefix + letter
     
-def create_edges_table_str (letter):
+def create_edge_table_str (letter):
     return "CREATE TABLE " + \
         edge_table_name(letter) + \
         "(id serial NOT NULL, " + \
@@ -61,35 +65,38 @@ def create_edges_table_str (letter):
         "target integer NOT NULL, " + \
         "type character varying, " + \
         "weight integer DEFAULT 0, " + \
-        "CONSTRAINT edge_id PRIMARY KEY (id));"
+        "CONSTRAINT edge_id_" + letter + " PRIMARY KEY (id));"
 
+def create_edge_table(conn, letter):
+    cur = conn.cursor()
+    cur.execute("DROP TABLE IF EXISTS " + edge_table_name(letter) + ";")
+    cur.execute(create_edge_table_str(letter))
+    cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (source);")
+    cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (target);")
+
+        
 # Create an edge table for each letter of the alphabet.
 
 def create_edge_tables(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Edge Tables...")
-    for letter in list(string.ascii_uppercase):
-        cur.execute("DROP TABLE IF EXISTS " + edge_table_name(letter) + ";")
-        cur.execute(create_edge_table_str(letter))
-
-#------------------------------------------------------------------------------
-
-def create_edges_table_indexes(conn):
-    cur = conn.cursor()
-    for letter in list(string.ascii_uppercase):
-        cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (source);")
-        cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (target);")
+    for letter in letters():
+        create_edge_table(conn,letter)
+        conn.commit()
     
+#------------------------------------------------------------------------------
+# Crete WikiDb Tables
 #------------------------------------------------------------------------------
 
 def create_wiki_db_graph_tables():
     conn = wikidb_connect()
+    # Vertices
     create_vertices_table(conn)
     create_vertices_table_indexes(conn)
-    create_edge_tables(conn)
-    create_edge_tables_indexes(conn)
     conn.commit()
-    return None 
+    # Edges
+    create_edge_tables(conn)
+    return True
 
 #------------------------------------------------------------------------------
 # Wiki DB Vertex Table Maintenace
@@ -157,14 +164,16 @@ DEFAULT_EDGE_TYPE = 'related'
 
 def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
     conn = ensure_connection(conn)
+    letter = source_name[0]
+    edge_table = edge_table_name(letter)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
     if source_id==None or target_id==None:
         return None
     else:
-        if find_wiki_edge_by_id(source_id, target_id, conn) == None:
+        if find_wiki_edge_by_id(edge_table, source_id, target_id, conn) == None:
             cur = conn.cursor()
-            cur.execute("INSERT INTO " + edge_table_name + " (source, target, type) " +\
+            cur.execute("INSERT INTO " + edge_table + " (source, target, type) " +\
                         "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
             if commit_p == True:
                 conn.commit()
@@ -179,10 +188,10 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
 
 #------------------------------------------------------------------------------
 
-def find_wiki_edge_by_id(source_id, target_id, conn=None):
+def find_wiki_edge_by_id(edge_table, source_id, target_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + edge_table_name + " " + \
+    cur.execute("SELECT * FROM " + edge_table + " " + \
                 "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
     rows = cur.fetchall()
     if rows==[]:
@@ -196,21 +205,25 @@ def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
+    letter = source_name[0]
+    edge_table = edge_table_name(letter)
     if source_id==None or target_id==None:
         return None
     else:
-        return find_wiki_edge_by_id(source_id, target_id, conn)
+        return find_wiki_edge_by_id(edge_table,source_id, target_id, conn)
 
 #------------------------------------------------------------------------------
 
 def find_wiki_edges(source_name, edge_type, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
+    letter = source_name[0]
+    edge_table = edge_table_name(letter)
     if source_id==None:
         return None
     else:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + edge_table_name + " " + \
+        cur.execute("SELECT * FROM " + edge_table + " " + \
                     "WHERE source=" + str(source_id) + "AND type='" + edge_type + "';")
         rows = cur.fetchall()
         return rows
@@ -220,10 +233,13 @@ def find_wiki_edges(source_name, edge_type, conn=None):
 def count_wiki_edges(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    # cur.execute("SELECT count(*) FROM " + edge_table_name)
-    cur.execute("SELECT count(*) FROM wiki_edges")
-    rows = cur.fetchall()
-    return rows[0][0]
+    total = 0
+    for letter in letters():
+        edge_table = edge_table_name(letter)
+        cur.execute("SELECT count(*) FROM " + edge_table)
+        rows = cur.fetchall()
+        total += rows[0][0]
+    return total
 
 #------------------------------------------------------------------------------
 # IN Neighbors and OUT Neighbors
