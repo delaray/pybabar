@@ -56,6 +56,13 @@ def letters():
     
 def edge_table_name(letter):
     return edge_table_name_prefix + letter
+
+def source_name_letter (name):
+    first = name[0].lower()
+    if first in letters():
+        return first
+    else:
+        return last(letters)
     
 def create_edge_table_str (letter):
     return "CREATE TABLE " + \
@@ -135,7 +142,7 @@ def find_wiki_vertex(vertex_name, conn=None):
         if rows == []:
             return None
         else:
-            return rows[0][0]
+            return rows[0][1]]
 
 #------------------------------------------------------------------------------
 
@@ -164,7 +171,7 @@ DEFAULT_EDGE_TYPE = 'related'
 
 def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
     conn = ensure_connection(conn)
-    letter = source_name[0]
+    letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
@@ -205,7 +212,7 @@ def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
-    letter = source_name[0]
+    letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     if source_id==None or target_id==None:
         return None
@@ -217,14 +224,14 @@ def find_wiki_edge(source_name, target_name, conn=None):
 def find_wiki_edges(source_name, edge_type, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
-    letter = source_name[0]
+    letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     if source_id==None:
         return None
     else:
         cur = conn.cursor()
         cur.execute("SELECT * FROM " + edge_table + " " + \
-                    "WHERE source=" + str(source_id) + "AND type='" + edge_type + "';")
+                    "WHERE source=" + str(source_id) + " AND type='" + edge_type + "';")
         rows = cur.fetchall()
         return rows
 
