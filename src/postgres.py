@@ -51,18 +51,21 @@ def create_vertices_table_indexes(conn):
 # Wiki DB Edge Tables Creation
 #------------------------------------------------------------------------------
 
+# Use both letter and digits given the number of digit based topic names.
+
 def letters():
-    return list(string.ascii_lowercase)
+    return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
+
     
 def edge_table_name(letter):
     return edge_table_name_prefix + letter
 
 def source_name_letter (name):
-    first = name[0].lower()
-    if first in letters():
-        return first
+    letter = name[0].lower()
+    if letter in letters():
+        return letter
     else:
-        return last(letters)
+        return 'z'
     
 def create_edge_table_str (letter):
     return "CREATE TABLE " + \
@@ -82,7 +85,8 @@ def create_edge_table(conn, letter):
     cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (target);")
 
         
-# Create an edge table for each letter of the alphabet.
+# Create an edge table for each letter of the alphabet and digit.
+# I.e. 36 tables for the edges)
 
 def create_edge_tables(conn):
     cur = conn.cursor()
@@ -142,7 +146,7 @@ def find_wiki_vertex(vertex_name, conn=None):
         if rows == []:
             return None
         else:
-            return rows[0][1]]
+            return rows[0][0]
 
 #------------------------------------------------------------------------------
 
@@ -199,7 +203,7 @@ def find_wiki_edge_by_id(edge_table, source_id, target_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + edge_table + " " + \
-                "WHERE source=" + str(source_id) + "AND target=" + str(target_id) + ";")
+                "WHERE source=" + str(source_id) + " AND target=" + str(target_id) + ";")
     rows = cur.fetchall()
     if rows==[]:
         return None
