@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg2i
 import nltk
 import string
 
@@ -46,6 +46,20 @@ def create_vertices_table_indexes(conn):
     cur = conn.cursor()
     cur.execute("CREATE INDEX ON " + vertex_table_name + " ((lower(name)));")
     conn.commit()
+
+#------------------------------------------------------------------------------
+# Dumpings Tables as CSVs
+#------------------------------------------------------------------------------
+    
+def save_vertex_table (pathname, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("copy (SELECT * FROM wiki_vertices) to " + "'" + pathname + "'  with csv")
+
+#------------------------------------------------------------------------------
+
+def save_edge_tables(directory, conn=None):
+    None
     
 #------------------------------------------------------------------------------
 # Wiki DB Edge Tables Creation
@@ -53,16 +67,19 @@ def create_vertices_table_indexes(conn):
 
 # Use both letter and digits given the number of digit based topic names.
 
-def letters():
+def table_suffixes():
     return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
 
     
 def edge_table_name(letter):
     return edge_table_name_prefix + letter
 
+def edge_table_names (suffixes=table_suffixes()):
+    return [edge_table_name(x) for x in suffixes]
+
 def source_name_letter (name):
     letter = name[0].lower()
-    if letter in letters():
+    if letter in table_suffixes():
         return letter
     else:
         return 'z'
@@ -91,7 +108,7 @@ def create_edge_table(conn, letter):
 def create_edge_tables(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Edge Tables...")
-    for letter in letters():
+    for letter in table_suffixes():
         create_edge_table(conn,letter)
         conn.commit()
     
@@ -162,7 +179,6 @@ def vertex_name(vertex_id,  conn=None):
 def count_wiki_vertices(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    # cur.execute("SELECT count(*) FROM " + vertex_table_name)
     cur.execute("SELECT count(*) FROM wiki_vertices")
     rows = cur.fetchall()
     return rows[0][0]
@@ -225,7 +241,7 @@ def find_wiki_edge(source_name, target_name, conn=None):
 
 #------------------------------------------------------------------------------
 
-def find_wiki_edges(source_name, edge_type, conn=None):
+def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     letter = source_name_letter(source_name)
@@ -240,18 +256,29 @@ def find_wiki_edges(source_name, edge_type, conn=None):
         return rows
 
 #------------------------------------------------------------------------------
+# Counting Vertices and Edges
+#------------------------------------------------------------------------------
 
-def count_wiki_edges(conn=None):
+# Retturn a dictionaru of table_namme and edge_count.
+
+def count_wiki_edges_by_table(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    total = 0
-    for letter in letters():
+    edge_counts = {}
+    for letter in table_suffixes():
         edge_table = edge_table_name(letter)
         cur.execute("SELECT count(*) FROM " + edge_table)
         rows = cur.fetchall()
-        total += rows[0][0]
-    return total
+        edge_counts.update({edge_table : rows[0][0]})
+    return edge_counts
+    
+#------------------------------------------------------------------------------
 
+def count_wiki_edges(conn=None):
+    conn = ensure_connection(conn)
+    counts = count_wiki_edges_by_table (conn)
+    return sum(counts.values())
+ 
 #------------------------------------------------------------------------------
 # IN Neighbors and OUT Neighbors
 #------------------------------------------------------------------------------
@@ -263,22 +290,28 @@ def find_wiki_in_neighbors(topic_name, conn=None):
         return []
     else:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + edge_table_name + " as we " + \
-                    "JOIN " + vertex_table_name + " as wv on we.source = wv.id " + \
-                    "WHERE target=" + str(topic_id) + ";")
-        rows = cur.fetchall()
-        return list(set([row[6] for row in rows]))
+        all_rows = []
+        for table in edge_table_names():
+            cur.execute("SELECT * FROM " + table + " as we " + \
+                        "JOIN " + vertex_table_name + " as wv on we.source = wv.id " + \
+                        "WHERE target=" + str(topic_id) + ";")
+            rows = cur.fetchall()
+            all_rows += rows
+        return list(set([row[6] for row in all_rows]))
+
 
 #------------------------------------------------------------------------------
 
 def find_wiki_out_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
-    topic_id = find_wiki_vertex(topic_name, conn)
+    topic_id = find_wiki_verte
     cur = conn.cursor()
     if topic_id == None:
         return []
     else:
-        cur.execute("SELECT * FROM " + edge_table_name + " as we " + \
+        letter = source_name_letter(topic_name)
+        edge_table = edge_table_name(letter)
+        cur.execute("SELECT * FROM " + edge_table + " as we " + \
                     "JOIN " + vertex_table_name + " as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
