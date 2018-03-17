@@ -1,8 +1,13 @@
-import psycopg2i
+import psycopg2
 import nltk
 import string
+from multiprocessing import Process, Manager, freeze_support
+import pandas as pd
+import pprint
+from functools import reduce
 
-#import clustering
+
+import clustering
 
 #vertex_table_name = 'old_wiki_vertices'
 vertex_table_name = 'wiki_vertices'
@@ -278,29 +283,14 @@ def count_wiki_edges(conn=None):
     conn = ensure_connection(conn)
     counts = count_wiki_edges_by_table (conn)
     return sum(counts.values())
- 
-#------------------------------------------------------------------------------
-# IN Neighbors and OUT Neighbors
-#------------------------------------------------------------------------------
-
-def find_wiki_in_neighbors(topic_name, conn=None):
-    conn = ensure_connection(conn)
-    topic_id = find_wiki_vertex(topic_name, conn)
-    if topic_id == None:
-        return []
-    else:
-        cur = conn.cursor()
-        all_rows = []
-        for table in edge_table_names():
-            cur.execute("SELECT * FROM " + table + " as we " + \
-                        "JOIN " + vertex_table_name + " as wv on we.source = wv.id " + \
-                        "WHERE target=" + str(topic_id) + ";")
-            rows = cur.fetchall()
-            all_rows += rows
-        return list(set([row[6] for row in all_rows]))
-
 
 #------------------------------------------------------------------------------
+# Out Neighors
+#------------------------------------------------------------------------------
+
+# Returns a list of neighbor topic names that are pointed to by <topic_name>.
+# These will necessarily be stored in the same table, so we only need to
+# query one table.
 
 def find_wiki_out_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
@@ -316,7 +306,87 @@ def find_wiki_out_neighbors(topic_name, conn=None):
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
         return list(set([row[6] for row in rows]))
+ 
+#------------------------------------------------------------------------------
+# In Neighbors
+#------------------------------------------------------------------------------
+
+# Returns a list of neighbor topic names that point to <topic_name>. These will
+# necessarily be scattered across several tables, so we need to query each of
+# them.
+ 
+def find_wiki_in_neighbors(topic_name, tables=None, conn=None):
+    conn = ensure_connection(conn)
+    topic_id = find_wiki_vertex(topic_name, conn)
+    if topic_id == None:
+        return []
+    else:
+        if tables == None:
+            tables = edge_table_names()
+        cur = conn.cursor()
+        all_rows = []
+        for edge_table_name in tables:
+            cur.execute("SELECT * FROM " + edge_table_name + " as we " + \
+                        "JOIN " + vertex_table_name + " as wv on we.source = wv.id " + \
+                        "WHERE target=" + str(topic_id) + ";")
+            rows = cur.fetchall()
+            all_rows += rows
+        return list(set([row[6] for row in all_rows]))
+
+#------------------------------------------------------------------------------
+
+# PARALLEL Version
+
+def split_list (a, n):
+    k, m = divmod(len(a), n)
+    return list (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+#------------------------------------------------------------------------------
+
+# def pdm_worker (tables, procnum, return_dict):
+#     results = find_wiki_in_neighbors (tables)
+#     return_dict[procnum] = results
+
+#------------------------------------------------------------------------------
+
+def pfind_wiki_in_neighbors(topic_name, conn=None):
+    conn = ensure_connection(conn)
+    topic_id = find_wiki_vertex(topic_name, conn)
+    if topic_id == None:
+        return []
+
+    l1, l2, l3, l4 = split_list(edge_table_names(), 4)
+
+    # Use a shared variable to collect results fromm each process
+    manager = Manager()
+    return_dict = manager.dict()
+
+    # Run four jobs, one for each quadrant of the matrix.
+    jobs = [] 
+    freeze_support()
+    p1 = Process(target=clustering.pdm_worker1, args=(topic_name, l1, 1, return_dict))
+    jobs.append(p1)
+    p1.start()
+    p2 = Process(target=clustering.pdm_worker1, args=(topic_name, l2, 2, return_dict))
+    jobs.append(p2)
+    p2.start()
+    p3 = Process(target=clustering.pdm_worker1, args=(topic_name, l3, 3, return_dict))
+    jobs.append(p3)
+    p3.start()
+    p4 = Process(target=clustering.pdm_worker1, args=(topic_name, l4, 4, return_dict))
+    jobs.append(p4)
+    p4.start()
+
+    # Gather the results
+    for proc in jobs:
+        proc.join()
+
+    # Join all the neighbors
+    neighbors = return_dict.values()
     
+    # Return the distance matrix
+    return reduce(lambda a, b : a + b, neighbors)
+
 #------------------------------------------------------------------------------
 # Strongly Related Topics
 #------------------------------------------------------------------------------
@@ -387,7 +457,7 @@ def subtopic_p (topic1, topic2):
 # Root Topics
 #------------------------------------------------------------------------------
 
-# Current finds all topic names that do not contain an underscore. This wwill be 
+# Current finds all topic names that do not contain an underscore. This will be 
 # be used to seed the different subtopic hierarchies.
 
 def find_wiki_root_topics(conn=None):
@@ -397,13 +467,6 @@ def find_wiki_root_topics(conn=None):
                 "WHERE wv.name NOT SIMILAR TO '%\_%'")
     rows = cur.fetchall()
     return [row[1] for row in rows]
-
-#------------------------------------------------------------------------------
-
-def pdm_worker (l1, l2, procnum, return_dict):
-    conn = ensure_connection()
-    m = clustering.generate_distance_matrix (l1, l2, conn)
-    return_dict[procnum] = m
 
 
 #------------------------------------------------------------------------------
@@ -431,4 +494,4 @@ def pdm_worker (l1, l2, procnum, return_dict):
 
 #------------------------------------------------------------------------------
 # End of File
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------

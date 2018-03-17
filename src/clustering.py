@@ -8,10 +8,12 @@ import pandas as pd
 import pprint
 
 # Pybabar
-import postgres
+import postgres 
 
 
 DEFAULT_THRESHOLD=1
+
+#------------------------------------------------------------------------
 
 #------------------------------------------------------------------------
 # Jaccard Index
@@ -43,8 +45,6 @@ def compare_topics (topic1, topic2, conn=None):
     l1 = find_wiki_out_neighbors(topic1, conn)
     l2 = find_wiki_out_neighbors(topic2, conn)
     return jaccard_index(l1, l2)
-
-
 
 #------------------------------------------------------------------------
 
@@ -97,7 +97,16 @@ def reassemble_matrix(quadrants):
     dm = pd.concat([c1, c2], axis=1)
     return dm
  
-#------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+# def pdm_worker (l1, l2, procnum, return_dict):
+#     conn = ensure_connection()
+#     m = generate_distance_matrix (l1, l2, conn)
+#     return_dict[procnum] = m
+
+def pdm_worker1 (topic, tables, procnum, return_dict):
+    results = postgres.find_wiki_in_neighbors (topic, tables)
+    return_dict[procnum] = results
 
 # Process four quadrants of the matrix in parallel.
 
@@ -115,16 +124,16 @@ def pgenerate_distance_matrix (topics):
     # Run four jobs, one for each quadrant of the matrix.
     jobs = [] 
     freeze_support()
-    p1 = Process(target=postgres.pdm_worker, args=(l1, l1, 1, return_dict))
+    p1 = Process(target=pdm_worker, args=(l1, l1, 1, return_dict))
     jobs.append(p1)
     p1.start()
-    p2 = Process(target=postgres.pdm_worker, args=(l1, l2, 2, return_dict))
+    p2 = Process(target=pdm_worker, args=(l1, l2, 2, return_dict))
     jobs.append(p2)
     p2.start()
-    p3 = Process(target=postgres.pdm_worker, args=(l2, l1, 3, return_dict))
+    p3 = Process(target=pdm_worker, args=(l2, l1, 3, return_dict))
     jobs.append(p3)
     p3.start()
-    p4 = Process(target=postgres.pdm_worker, args=(l2, l2, 4, return_dict))
+    p4 = Process(target=pdm_worker, args=(l2, l2, 4, return_dict))
     jobs.append(p4)
     p4.start()
 
