@@ -1,13 +1,11 @@
 import psycopg2
-import nltk
 import string
 from multiprocessing import Process, Manager, freeze_support
 import pandas as pd
 import pprint
 from functools import reduce
 
-
-import clustering
+import processes
 
 #vertex_table_name = 'old_wiki_vertices'
 vertex_table_name = 'wiki_vertices'
@@ -285,19 +283,7 @@ def count_wiki_edges(conn=None):
     return sum(counts.values())
 
 #------------------------------------------------------------------------------
-# Filter Topics
-#------------------------------------------------------------------------------
-
-# Removes references to subsections and parentheisized pages.
-
-def filter_topics (source, topics):
-    # list1 = [x for x in topics if ('#' + source.lower()) not in x.lower()]
-    list1 = [x for x in topics if '#' not in x.lower()]
-    list2 = [x for x in list1 if '_(' not in x]
-    return list(set(list2))
-
-#------------------------------------------------------------------------------
-# Out Neighors
+# Out Neighbors
 #------------------------------------------------------------------------------
 
 # Returns a list of neighbor topic names that are pointed to by <topic_name>.
@@ -317,7 +303,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
                     "JOIN " + vertex_table_name + " as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return filter_topics (topic_name, list(set([row[6] for row in rows])))
+        return list(set([row[6] for row in rows]))
 
 #------------------------------------------------------------------------------
 # In Neighbors
@@ -327,7 +313,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
 # necessarily be scattered across several tables, so we need to query each of
 # them.
  
-def find_wiki_in_neighbors(topic_name, tables=None, conn=None):
+def _find_wiki_in_neighbors(topic_name, tables=None, conn=None):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
     if topic_id == None:
@@ -343,25 +329,19 @@ def find_wiki_in_neighbors(topic_name, tables=None, conn=None):
                         "WHERE target=" + str(topic_id) + ";")
             rows = cur.fetchall()
             all_rows += rows
-        return filter_topics (topic_name, list(set([row[6] for row in all_rows])))
+        return list(set([row[6] for row in all_rows]))
 
 #------------------------------------------------------------------------------
-
-# PARALLEL Version
 
 def split_list (a, n):
     k, m = divmod(len(a), n)
     return list (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 #------------------------------------------------------------------------------
-
-# def pdm_worker (tables, procnum, return_dict):
-#     results = find_wiki_in_neighbors (tables)
-#     return_dict[procnum] = results
-
+# In Neigbors (PARALLEL Version)
 #------------------------------------------------------------------------------
 
-def pfind_wiki_in_neighbors(topic_name, conn=None, threads=8):
+def find_wiki_in_neighbors(topic_name, conn=None, threads=8):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
     if topic_id == None:
@@ -377,7 +357,7 @@ def pfind_wiki_in_neighbors(topic_name, conn=None, threads=8):
     jobs = [] 
     freeze_support()
     for index, piece in enumerate(lists):
-        p = Process(target=clustering.pdm_worker1, args=(topic_name, piece, index, return_dict))
+        p = Process(target=processes.neighbor_worker, args=(topic_name, piece, index, return_dict))
         jobs.append(p)
         p.start()
 
@@ -392,92 +372,21 @@ def pfind_wiki_in_neighbors(topic_name, conn=None, threads=8):
     else:
         return reduce(lambda a, b : a + b, neighbors)
 
+    
 #------------------------------------------------------------------------------
-# SUBTOPICS
-#------------------------------------------------------------------------------
-
-# Find _potential subtopics
-
-def find_potential_subtopics (topic_name, conn=None):
-    conn = ensure_connection(conn)
-    result = []
-    in_vertices =  set(pfind_wiki_in_neighbors(topic_name))
-    out_vertices = set(find_wiki_out_neighbors(topic_name, conn))
-    vertices = list(in_vertices.union(out_vertices))
-    for x in vertices:
-        if topic_name.lower() in x.lower():
-            result.append(x)
-    return filter_topics (topic_name, result)
-
-#------------------------------------------------------------------------------
-
-def compute_wiki_subtopics(topic_name, conn=None):
-    conn = ensure_connection(conn)
-    topics = find_potential_subtopics(topic_name, conn)
-    subtopics = []
-    for topic1 in topics:
-        topic2 = topic1.replace('_', ' ')
-        tokens = nltk.word_tokenize(topic2)
-        if tokens[-1].lower() == topic_name.lower():
-            subtopics.append(topic1)
-    return subtopics
-
-#------------------------------------------------------------------------------
-
-# This computes the subtopics of topic_name and adds subtopic and supertopic
-#  edges to the graph.
-
-def add_wiki_subtopics(topic_name, conn=None):
-    conn = ensure_connection(conn)
-    subtopics = compute_wiki_subtopics (topic_name, conn=None)
-    for subtopic in subtopics:
-        add_wiki_edge(subtopic, topic_name, edge_type='subtopic', conn=conn)
-        add_wiki_edge(topic_name, subtopic, edge_type='supertopic', conn=conn)
-    conn.commit()
-
-#------------------------------------------------------------------------------
-
-def subtopic_p (topic1, topic2):
-    topic =  topic2.replace('_', ' ')
-    tokens = nltk.word_tokenize(topic)
-    subtopicp = True
-    for t in tokens:
-        if not t.lower() in topic1.lower():
-            subtopicp = False
-    return subtopicp
-
-#------------------------------------------------------------------------------
-# Root Topics
+# Root Vertices
 #------------------------------------------------------------------------------
 
 # Current finds all topic names that do not contain an underscore. This will be 
 # be used to seed the different subtopic hierarchies.
 
-def find_wiki_root_topics(conn=None):
+def find_wiki_root_vertices(conn=None):
     conn = ensure_connection(conn) 
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + vertex_table_name + " as wv " + \
                 "WHERE wv.name NOT SIMILAR TO '%\_%'")
     rows = cur.fetchall()
     return [row[1] for row in rows]
-
-
-#------------------------------------------------------------------------------
-
-# def generate_comparator (conn=None):
-#     def cfn (topic1, topic2):
-#         c = ensure_connection(conn)
-#         return compare_topics (topic1, topic2, c)
-#     return cfn
-
-#------------------------------------------------------------------------------
-
-# Note: <topics> is a list of topic names.
-
-# def compute_topics_distance_matrix (topics, conn=None):
-#     cfn = generate_comparator(conn)
-#     dm = generate_distance_matrix (topics, topics, cfn)
-#     return dm
     
 #------------------------------------------------------------------------------
 # Run Time

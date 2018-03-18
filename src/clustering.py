@@ -8,12 +8,14 @@ import pandas as pd
 import pprint
 
 # Pybabar
-import postgres 
-
-
-DEFAULT_THRESHOLD=1
+import processes
+import postgres
 
 #------------------------------------------------------------------------
+# Global Parameters
+#------------------------------------------------------------------------
+
+DEFAULT_THRESHOLD=1
 
 #------------------------------------------------------------------------
 # Jaccard Index
@@ -97,17 +99,6 @@ def reassemble_matrix(quadrants):
     dm = pd.concat([c1, c2], axis=1)
     return dm
  
-#------------------------------------------------------------------------------
-
-# def pdm_worker (l1, l2, procnum, return_dict):
-#     conn = ensure_connection()
-#     m = generate_distance_matrix (l1, l2, conn)
-#     return_dict[procnum] = m
-
-def pdm_worker1 (topic, tables, procnum, return_dict):
-    results = postgres.find_wiki_in_neighbors (topic, tables)
-    return_dict[procnum] = results
-
 # Process four quadrants of the matrix in parallel.
 
 def pgenerate_distance_matrix (topics):
@@ -124,16 +115,16 @@ def pgenerate_distance_matrix (topics):
     # Run four jobs, one for each quadrant of the matrix.
     jobs = [] 
     freeze_support()
-    p1 = Process(target=pdm_worker, args=(l1, l1, 1, return_dict))
+    p1 = Process(target=processes.pdm_worker, args=(l1, l1, 1, return_dict))
     jobs.append(p1)
     p1.start()
-    p2 = Process(target=pdm_worker, args=(l1, l2, 2, return_dict))
+    p2 = Process(target=processes.pdm_worker, args=(l1, l2, 2, return_dict))
     jobs.append(p2)
     p2.start()
-    p3 = Process(target=pdm_worker, args=(l2, l1, 3, return_dict))
+    p3 = Process(target=processes.pdm_worker, args=(l2, l1, 3, return_dict))
     jobs.append(p3)
     p3.start()
-    p4 = Process(target=pdm_worker, args=(l2, l2, 4, return_dict))
+    p4 = Process(target=processes.pdm_worker, args=(l2, l2, 4, return_dict))
     jobs.append(p4)
     p4.start()
 
@@ -192,6 +183,23 @@ def show_clusters(clusters):
     pp = pprint.PrettyPrinter(indent=4)
     for c in clusters:
         pp.pprint(c.members)
+
+#------------------------------------------------------------------------------
+
+# def generate_comparator (conn=None):
+#     def cfn (topic1, topic2):
+#         c = ensure_connection(conn)
+#         return compare_topics (topic1, topic2, c)
+#     return cfn
+
+#------------------------------------------------------------------------------
+
+# Note: <topics> is a list of topic names.
+
+# def compute_topics_distance_matrix (topics, conn=None):
+#     cfn = generate_comparator(conn)
+#     dm = generate_distance_matrix (topics, topics, cfn)
+#     return dm
     
 #------------------------------------------------------------------------
 # End of File
