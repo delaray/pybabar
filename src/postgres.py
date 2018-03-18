@@ -285,6 +285,18 @@ def count_wiki_edges(conn=None):
     return sum(counts.values())
 
 #------------------------------------------------------------------------------
+# Filter Topics
+#------------------------------------------------------------------------------
+
+# Removes references to subsections and parentheisized pages.
+
+def filter_topics (source, topics):
+    # list1 = [x for x in topics if ('#' + source.lower()) not in x.lower()]
+    list1 = [x for x in topics if '#' not in x.lower()]
+    list2 = [x for x in list1 if '_(' not in x]
+    return list(set(list2))
+
+#------------------------------------------------------------------------------
 # Out Neighors
 #------------------------------------------------------------------------------
 
@@ -294,7 +306,7 @@ def count_wiki_edges(conn=None):
 
 def find_wiki_out_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
-    topic_id = find_wiki_verte
+    topic_id = find_wiki_vertex(topic_name, conn)
     cur = conn.cursor()
     if topic_id == None:
         return []
@@ -305,8 +317,8 @@ def find_wiki_out_neighbors(topic_name, conn=None):
                     "JOIN " + vertex_table_name + " as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
-        return list(set([row[6] for row in rows]))
- 
+        return filter_topics (topic_name, list(set([row[6] for row in rows])))
+
 #------------------------------------------------------------------------------
 # In Neighbors
 #------------------------------------------------------------------------------
@@ -331,7 +343,7 @@ def find_wiki_in_neighbors(topic_name, tables=None, conn=None):
                         "WHERE target=" + str(topic_id) + ";")
             rows = cur.fetchall()
             all_rows += rows
-        return list(set([row[6] for row in all_rows]))
+        return filter_topics (topic_name, list(set([row[6] for row in all_rows])))
 
 #------------------------------------------------------------------------------
 
@@ -349,13 +361,13 @@ def split_list (a, n):
 
 #------------------------------------------------------------------------------
 
-def pfind_wiki_in_neighbors(topic_name, conn=None):
+def pfind_wiki_in_neighbors(topic_name, conn=None, threads=8):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
     if topic_id == None:
         return []
 
-    l1, l2, l3, l4 = split_list(edge_table_names(), 4)
+    lists = split_list(edge_table_names(), threads)
 
     # Use a shared variable to collect results fromm each process
     manager = Manager()
@@ -364,18 +376,10 @@ def pfind_wiki_in_neighbors(topic_name, conn=None):
     # Run four jobs, one for each quadrant of the matrix.
     jobs = [] 
     freeze_support()
-    p1 = Process(target=clustering.pdm_worker1, args=(topic_name, l1, 1, return_dict))
-    jobs.append(p1)
-    p1.start()
-    p2 = Process(target=clustering.pdm_worker1, args=(topic_name, l2, 2, return_dict))
-    jobs.append(p2)
-    p2.start()
-    p3 = Process(target=clustering.pdm_worker1, args=(topic_name, l3, 3, return_dict))
-    jobs.append(p3)
-    p3.start()
-    p4 = Process(target=clustering.pdm_worker1, args=(topic_name, l4, 4, return_dict))
-    jobs.append(p4)
-    p4.start()
+    for index, piece in enumerate(lists):
+        p = Process(target=clustering.pdm_worker1, args=(topic_name, piece, index, return_dict))
+        jobs.append(p)
+        p.start()
 
     # Gather the results
     for proc in jobs:
@@ -383,21 +387,10 @@ def pfind_wiki_in_neighbors(topic_name, conn=None):
 
     # Join all the neighbors
     neighbors = return_dict.values()
-    
-    # Return the distance matrix
-    return reduce(lambda a, b : a + b, neighbors)
-
-#------------------------------------------------------------------------------
-# Strongly Related Topics
-#------------------------------------------------------------------------------
-
-# Find topics that are mutually linkeed to topic_name.
-
-def find_strongly_related_topics (topic_name, conn=None):
-    conn = ensure_connection(conn)
-    in_vertices = find_wiki_in_neighbors(topic_name, conn)
-    out_vertices = find_wiki_out_neighbors(topic_name, conn)
-    return list(set(in_vertices) & set(out_vertices))
+    if neighbors == []:
+        return []
+    else:
+        return reduce(lambda a, b : a + b, neighbors)
 
 #------------------------------------------------------------------------------
 # SUBTOPICS
@@ -408,13 +401,13 @@ def find_strongly_related_topics (topic_name, conn=None):
 def find_potential_subtopics (topic_name, conn=None):
     conn = ensure_connection(conn)
     result = []
-    in_vertices =  set(find_wiki_in_neighbors(topic_name, conn))
+    in_vertices =  set(pfind_wiki_in_neighbors(topic_name))
     out_vertices = set(find_wiki_out_neighbors(topic_name, conn))
     vertices = list(in_vertices.union(out_vertices))
     for x in vertices:
         if topic_name.lower() in x.lower():
             result.append(x)
-    return result
+    return filter_topics (topic_name, result)
 
 #------------------------------------------------------------------------------
 
