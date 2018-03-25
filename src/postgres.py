@@ -387,7 +387,7 @@ def find_wiki_root_vertices(conn=None):
                 "WHERE wv.name NOT SIMILAR TO '%\_%'")
     rows = cur.fetchall()
     return [row[1] for row in rows]
-    
+
 #------------------------------------------------------------------------------
 # Run Time
 #------------------------------------------------------------------------------

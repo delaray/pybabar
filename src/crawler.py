@@ -27,7 +27,7 @@ def process_topic (topic):
 
 # Ths crawls wikipedia to the specified depth stating with root_topic.
 
-def crawl_wiki(depth=2, root_topic='Elephant'):
+def crawl_wiki(depth=2, root_topic='Art'):
     topics = [root_topic]
     topics_count = 0
     add_wiki_vertices(topics)
@@ -42,10 +42,10 @@ def crawl_wiki(depth=2, root_topic='Elephant'):
 
 #-------------------------------------------------------------------------------
 
-def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH, reset=False):
+def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH, reset=False, topic='Art'):
     if reset==True:
         create_wiki_db_graph_tables()
-    crawl_wiki(depth)
+    crawl_wiki(depth, topic)
 
 #-------------------------------------------------------------------------------
 # Runtime
@@ -57,10 +57,11 @@ def main():
     args = sys.argv
     depth = int(args[1])
     reset = args[2]
+    topic = args[3]
     print (depth)
     reset = True if reset=="True" else False
     print (reset)
-    crawl_wikipedia(depth, reset)
+    crawl_wikipedia(depth, reset, topic)
   
 #-------------------------------------------------------------------------------
 

@@ -1,0 +1,10 @@
+# Backup Database to disk:
+
+pg_dump --host localhost --port 5432 --username "postgres" --password  --format custom --blobs --file "c:\pgdata\wikidb.backup" "wikidb"
+
+
+# Restore Databse from disk:
+
+psql -h localhost -p 5432 -U postgres -W -c "CREATE DATABASE wikidb"
+
+pg_restore -h localhost -p 5432 -U postgres -W --dbname "wikidb" -clean "C:\pgdata\wikidb\wikidb.backup"
