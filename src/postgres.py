@@ -10,6 +10,8 @@ import processes
 #vertex_table_name = 'old_wiki_vertices'
 vertex_table_name = 'wiki_vertices'
 
+root_table_name='wiki_root_vertices'
+
 #edge_table_name = 'old_wiki_edges'
 edge_table_name_prefix = 'wiki_edges_'
 
@@ -51,6 +53,35 @@ def create_vertices_table_indexes(conn):
     conn.commit()
 
 #------------------------------------------------------------------------------
+# Wiki DB Root Vertices Table Creation
+#------------------------------------------------------------------------------
+
+# NB: The priimary key will be a vertex id from the vertex table.
+
+root_vertices_str = "CREATE TABLE " + root_table_name + \
+                    "(id integer NOT NULL, " + \
+                      "name character varying, " + \
+                      "weight integer DEFAULT 0, " + \
+                      "indegree integer DEFAULT 0, " + \
+                      "outdegree integer DEFAULT 0, " + \
+                      "CONSTRAINT vertex_id PRIMARY KEY (id));"
+
+#------------------------------------------------------------------------------
+
+def create_root_vertices_table(conn):
+    cur = conn.cursor()
+    print ("Creating Wikipedia Vertices Table...")
+    cur.execute("DROP TABLE IF EXISTS " + root_table_name + ";")
+    cur.execute(root_vertices_str)
+
+#------------------------------------------------------------------------------
+
+def create_root_vertices_table_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON " + vertex_table_name + " ((lower(name)));")
+    conn.commit()
+
+#------------------------------------------------------------------------------
 # Dumpings Tables as CSVs
 #------------------------------------------------------------------------------
     
@@ -73,12 +104,16 @@ def save_edge_tables(directory, conn=None):
 def table_suffixes():
     return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
 
-    
+#------------------------------------------------------------------------------    
 def edge_table_name(letter):
     return edge_table_name_prefix + letter
 
+#------------------------------------------------------------------------------
+
 def edge_table_names (suffixes=table_suffixes()):
     return [edge_table_name(x) for x in suffixes]
+
+#------------------------------------------------------------------------------
 
 def source_name_letter (name):
     letter = name[0].lower()
@@ -86,7 +121,9 @@ def source_name_letter (name):
         return letter
     else:
         return 'z'
-    
+
+#------------------------------------------------------------------------------
+
 def create_edge_table_str (letter):
     return "CREATE TABLE " + \
         edge_table_name(letter) + \
@@ -97,6 +134,8 @@ def create_edge_table_str (letter):
         "weight integer DEFAULT 0, " + \
         "CONSTRAINT edge_id_" + letter + " PRIMARY KEY (id));"
 
+#------------------------------------------------------------------------------
+
 def create_edge_table(conn, letter):
     cur = conn.cursor()
     cur.execute("DROP TABLE IF EXISTS " + edge_table_name(letter) + ";")
@@ -104,9 +143,13 @@ def create_edge_table(conn, letter):
     cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (source);")
     cur.execute("CREATE INDEX ON " + edge_table_name(letter) + " (target);")
 
-        
+#------------------------------------------------------------------------------
+
 # Create an edge table for each letter of the alphabet and digit.
-# I.e. 36 tables for the edges)
+# This is a total of 36 tables for the edges. While this may impede edge
+# retrieval, these tables reprsent the raw graph and it anticipateed
+# that the system will operate on other graphs built from this raw
+# snapshot of the wikipedia pages graph.
 
 def create_edge_tables(conn):
     cur = conn.cursor()
@@ -125,6 +168,9 @@ def create_wiki_db_graph_tables():
     create_vertices_table(conn)
     create_vertices_table_indexes(conn)
     conn.commit()
+    # Root Verticees
+    create_root_vertices_table(conn)
+    create_root_vertices_
     # Edges
     create_edge_tables(conn)
     return True
@@ -166,8 +212,56 @@ def find_wiki_vertex(vertex_name, conn=None):
         if rows == []:
             return None
         else:
-            return rows[0][0]
+            return rows[0]
 
+#------------------------------------------------------------------------------
+
+# Returns a list of vertex names
+
+def find_wiki_vertices(vertex_pattern, conn=None):
+    if "'" in vertex_pattern:
+        return None
+    else:
+        conn = ensure_connection(conn)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM " + vertex_table_name + " " + \
+                    "WHERE LOWER(name) like LOWER('" + vertex_pattern + "');")
+        rows = cur.fetchall()
+        if rows == []:
+            return None
+        else:
+            return [row[1] for row in rows]
+
+def count_vertex_out_neighbors (vertex_name, conn=None):
+    return len(find_wiki_edges(vertex_name, conn=conn))
+
+#------------------------------------------------------------------------------
+
+def update_vertex_weight(vertex_name, conn=None, commit=False):
+    conn = ensure_connection(conn)
+    weight = count_vertex_out_neighbors (vertex_name, conn=conn)
+    cur = conn.cursor()
+    cur.execute("UPDATE " + vertex_table_name + " SET weight = " + str(weight) + \
+                "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
+    if commit==True:
+        conn.commit()
+    return find_wiki_vertex(vertex_name, conn=conn)
+
+#------------------------------------------------------------------------------
+
+def update_all_vertex_weights ():
+    count = 0
+    for symbol in table_suffixes():
+        vertices = find_wiki_vertices(symbol + '%')
+        print ("Processinng " + str(len(vertices)) + " vertices starting with " + symbol + "...")
+        conn = ensure_connection()
+        for vertex in vertices:
+            if count%10000==0:
+                print ("Processed " + str(count) + " vertices.")
+            count += 1
+            update_vertex_weight (vertex, conn=conn, commit=False)
+        conn.commit()
+        
 #------------------------------------------------------------------------------
 
 def vertex_name(vertex_id,  conn=None):
@@ -190,7 +284,7 @@ def count_wiki_vertices(conn=None):
 # Wiki DB Edge Table Maintenace
 #------------------------------------------------------------------------------
 
-DEFAULT_EDGE_TYPE = 'related'
+Default_EDGE_TYPE = 'related'
 
 def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
     conn = ensure_connection(conn)
@@ -198,6 +292,8 @@ def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=No
     edge_table = edge_table_name(letter)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
+    source_id = source_id[0] if source_id is not None else source_id
+    target_id = target_id[0] if target_id is not None else target_id
     if source_id==None or target_id==None:
         return None
     else:
@@ -235,6 +331,8 @@ def find_wiki_edge(source_name, target_name, conn=None):
     conn = ensure_connection(conn)
     source_id = find_wiki_vertex(source_name, conn)
     target_id = find_wiki_vertex(target_name, conn)
+    source_id = source_id[0] if source_id is not None else source_id
+    target_id = target_id[0] if target_id is not None else target_id
     letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     if source_id==None or target_id==None:
@@ -244,9 +342,20 @@ def find_wiki_edge(source_name, target_name, conn=None):
 
 #------------------------------------------------------------------------------
 
+def ensure_source_id(source, conn=None):
+    if type(source) == str:
+        return(find_wiki_vertex(source, conn))
+    else:
+        return(source)
+
+#------------------------------------------------------------------------------
+
+# NB: <source> can be an id or a name.
+
 def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
     conn = ensure_connection(conn)
-    source_id = find_wiki_vertex(source_name, conn)
+    source_id = ensure_source_id(source_name, conn)
+    source_id = source_id[0] if source_id is not None else source_id
     letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     if source_id==None:
@@ -293,6 +402,7 @@ def count_wiki_edges(conn=None):
 def find_wiki_out_neighbors(topic_name, conn=None):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
+    topic_id = topic[0] if topic_id is not None else topic_id
     cur = conn.cursor()
     if topic_id == None:
         return []
@@ -316,6 +426,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
 def _find_wiki_in_neighbors(topic_name, tables=None, conn=None):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
+    topic_id = topic[0] if topic_id is not None else topic_id
     if topic_id == None:
         return []
     else:
@@ -344,6 +455,7 @@ def split_list (a, n):
 def find_wiki_in_neighbors(topic_name, conn=None, threads=8):
     conn = ensure_connection(conn)
     topic_id = find_wiki_vertex(topic_name, conn)
+    topic_id = topic_id[0] if topic_id is not None else topic_id
     if topic_id == None:
         return []
 
@@ -377,17 +489,39 @@ def find_wiki_in_neighbors(topic_name, conn=None, threads=8):
 # Root Vertices
 #------------------------------------------------------------------------------
 
-# Current finds all topic names that do not contain an underscore. This will be 
+# NB:
+
+# row = cur.fetchone()
+# while row:
+#     # do something with row
+#     row = cur.fetchone()
+
+#------------------------------------------------------------------------------
+    
+# Currently finds all topic names that do not contain an underscore. This will be 
 # be used to seed the different subtopic hierarchies.
 
-def find_wiki_root_vertices(conn=None):
+def get_wiki_root_vertices(conn=None, limit=1000000):
     conn = ensure_connection(conn) 
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + vertex_table_name + " as wv " + \
-                "WHERE wv.name NOT SIMILAR TO '%\_%'")
-    rows = cur.fetchall()
-    return [row[1] for row in rows]
+                "WHERE wv.name NOT SIMILAR TO '%\_%' " + \
+                "AND wv.name NOT SIMILAR TO '%\#%'")
+    rows = []
+    row = cur.fetchone()
+    count = 0
+    while row and count < limit:
+        count += 1
+        rows.append(row)
+        row = cur.fetchone()
+    return rows
 
+#------------------------------------------------------------------------------
+
+def find_wiki_root_vrrtices(conn=None, limit=1000000):
+    rows = get_wiki_root_vertices(conn)
+    return [row[1] for row in rows]
+    
 #------------------------------------------------------------------------------
 # Run Time
 #------------------------------------------------------------------------------

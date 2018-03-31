@@ -38,7 +38,7 @@ def get_url_data (url):
 
 #--------------------------------------------------------------------
 
-soup_data = get_url_data(Sample_Wikipedia_Url)
+#soup_data = get_url_data(Sample_Wikipedia_Url)
 
 #--------------------------------------------------------------------
 
