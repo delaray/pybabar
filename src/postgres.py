@@ -199,13 +199,13 @@ def edge_table_name(letter):
 #------------------------------------------------------------------------------
 
 def edge_tables (suffixes=table_suffixes()):
-    return [edge_table(x) for x in suffixes]
+    return [edge_table_name(x) for x in suffixes]
 
 #------------------------------------------------------------------------------
 
 def create_edge_table_str (letter):
     return "CREATE TABLE " + \
-        edge_table(letter) + \
+        edge_table_name(letter) + \
         "(id serial NOT NULL, " + \
         "source integer NOT NULL," + \
         "target integer NOT NULL, " + \
