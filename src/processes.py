@@ -7,7 +7,7 @@ import clustering
 #------------------------------------------------------------------------------
 
 def neighbor_worker (topic, tables, procnum, return_dict):
-    results = postgres._find_wiki_in_neighbors (topic, tables)
+    results = postgres.find_wiki_in_neighbors (topic, tables)
     return_dict[procnum] = results
 
 #------------------------------------------------------------------------------
@@ -22,4 +22,3 @@ def pdm_worker (l1, l2, procnum, return_dict):
 #------------------------------------------------------------------------------
 # End of File
 #------------------------------------------------------------------------------
-
