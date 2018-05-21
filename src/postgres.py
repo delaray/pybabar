@@ -13,7 +13,7 @@
 
 # DUMPING AND RESTORING THE DATABASE
 #
-# pg_dump -h localhost -p 5432 -U postgres -F c -b -v -f "<filename>" wikidb_db
+# pg_dump -h localhost -p 5432 -U postgres -F c -b -v -f "wikidb.dump" wikidb
 #
 # NB: Delete and recreate the wikidb before doing a restore.
 #
