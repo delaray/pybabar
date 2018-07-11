@@ -1,4 +1,4 @@
-# PYBABAR
+# PYBABAR: A knowledge extraction project
 
 This repo is in the very early stages on implementing in Python some of the functionality provided by BABAR, a knowledge extraction system for Wikipedia tht was originally in CLOS. 
 
