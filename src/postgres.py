@@ -17,9 +17,10 @@
 #
 # NB: Delete and recreate the wikidb before doing a restore.
 #
-# pg_restore -h localhost -p 5432 -U postgres -d old_db -v "<filename>"
+# pg_restore -h localhost -p 5432 -U postgres -d wikidb -v "wikidb.dump"
 #
 #*****************************************************************************
+
 import psycopg2
 import string
 from multiprocessing import Process, Manager, freeze_support
