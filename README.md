@@ -1,4 +1,4 @@
-# PYBABAR
+# PYBAR
 
 This repo is in the very early stages on implementing in Python some of the functionality provided by BABAR, a knowledge extraction system for Wikipedia tht was originally in CLOS. 
 
@@ -51,7 +51,7 @@ Out[53]: 120
 In [54]: x
 Out[54]: ['African_bush_elephant', 'African_forest_elephant',..., 'Tusk', 'Vomeronasal_organ', 'War_elephant', 'Woolly_mammoth', 'Working_animal', 'Year_of_the_Elephant', 'Zoo']
 
-4. Find the list of Wikipedia topics that are potential subtopics of "Elephant"
+### 4. Find the list of Wikipedia topics that are potential subtopics of "Elephant"
 
 
 In [52]: x = tp.compute_wiki_subtopics("elephant")
