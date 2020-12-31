@@ -7,10 +7,10 @@
 # Part 3: Status Operations
 # Part 4: Maintenance Operations
 # Part 5: Deletion operations
-# Part 6: Miscellaneous Operations
+# Part 6: Lexicon Tables
 #
 #*****************************************************************************
-
+#
 # DUMPING AND RESTORING THE DATABASE
 #
 # pg_dump -h localhost -p 5432 -U postgres -F c -b -v -f "wikidb.dump" wikidb
@@ -21,14 +21,18 @@
 #
 #*****************************************************************************
 
+
+import sys
 import psycopg2
 import string
 import pprint
 import pandas as pd
+from  urllib.parse import unquote
 
 from functools import reduce
 from multiprocessing import Process, Manager, freeze_support
 
+# Project Imports
 import src.processes
 
 #******************************************************************************
@@ -44,7 +48,7 @@ import src.processes
 #------------------------------------------------------------------------------
 
 vertex_table = 'wiki_vertices'
-root_vertices_table='wiki_root_vertices'
+ROOT_VERTICES_TABLE='wiki_root_vertices'
 edge_table_prefix = 'wiki_edges_'
 
 #------------------------------------------------------------------------------
@@ -88,6 +92,13 @@ def ensure_connection(conn=None):
     if conn == None:
         conn = wikidb_connect()
     return(conn)
+
+#------------------------------------------------------------------------------
+
+def execute_query(query, data=(), conn=None):
+    conn = conn if conn != None else ensure_connection()
+    cur = conn.cursor()
+    cur.execute(query, data)
 
 #------------------------------------------------------------------------------
 # CSV File Row to DB Row String
@@ -140,7 +151,7 @@ def create_vertices_table_indexes(conn):
 
 # NB: The priimary key will be a vertex id from the vertex table.
 
-root_vertices_str = "CREATE TABLE " + root_vertices_table + \
+root_vertices_str = "CREATE TABLE " + ROOT_VERTICES_TABLE + \
                     "(id integer NOT NULL, " + \
                       "name character varying, " + \
                       "weight integer DEFAULT 0, " + \
@@ -153,7 +164,7 @@ root_vertices_str = "CREATE TABLE " + root_vertices_table + \
 def create_root_vertices_table(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Vertices Table...")
-    cur.execute("DROP TABLE IF EXISTS " + root_vertices_table + ";")
+    cur.execute("DROP TABLE IF EXISTS " + ROOT_VERTICES_TABLE + ";")
     cur.execute(root_vertices_str)
     conn.commit()
 
@@ -161,7 +172,7 @@ def create_root_vertices_table(conn):
 
 def create_root_vertices_table_indexes(conn):
     cur = conn.cursor()
-    cur.execute("CREATE INDEX ON " + root_vertices_table + " ((lower(name)));")
+    cur.execute("CREATE INDEX ON " + ROOT_VERTICES_TABLE + " ((lower(name)));")
     conn.commit()
 
 #------------------------------------------------------------------------------
@@ -178,7 +189,7 @@ root_fields = "(id, name, weight, outdegree)"
 def add_root_vertex(row, conn=None, commit=False):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    query = "INSERT INTO " + root_vertices_table + " " + root_fields + " VALUES " + row_to_str(row) + ";"
+    query = "INSERT INTO " + ROOT_VERTICES_TABLE + " " + root_fields + " VALUES " + row_to_str(row) + ";"
     try:
         cur.execute(query)
         if commit == True:
@@ -458,7 +469,7 @@ def find_wiki_in_neighbors(topic_name, conn=None, threads=8):
 def get_root_vertex(vertex_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + root_vertices_table + " WHERE id=" + str(vertex_id) + ";")
+    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " WHERE id=" + str(vertex_id) + ";")
     rows = cur.fetchall()
     return rows[0] if rows != [] else None
 
@@ -467,7 +478,7 @@ def get_root_vertex(vertex_id, conn=None):
 def get_root_vertices(vertex_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + root_vertices_table + ";")
+    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + ";")
     rows = cur.fetchall()
     return rows
 
@@ -479,7 +490,7 @@ def find_root_vertex(vertex_name, conn=None):
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + root_vertices_table + " " + \
+        cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " " + \
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
         return rows[0] if rows != [] else None
@@ -810,31 +821,110 @@ def delete_bogus_vertices(conn=None):
         delete_bogus_vertex(vertex_row[1], conn=conn)
     return True
 
+#*****************************************************************************
+# Part 5: Lexicon Tables
+#*****************************************************************************
+
 #------------------------------------------------------------------------------
-# Out Neighbors
+# Dictionary Table Creation
 #------------------------------------------------------------------------------
 
+DICTIONARY_TABLE = 'dictionary'
 
+# NB: The priimary key will be a vertex id from the vertex table.
+
+dictionary_str = "CREATE TABLE " + DICTIONARY_TABLE + \
+                    "(id serial NOT NULL, " + \
+                      "word character varying, " + \
+                      "base character varying, " + \
+                      "pos character varying, " + \
+                      "category character varying, " + \
+                      "all_pos character varying, " + \
+                      "definition character varying, " + \
+                      "CONSTRAINT dictionary_id PRIMARY KEY (id));"
+
+#------------------------------------------------------------------------------
+
+def create_dictionary_table(conn):
+    cur = conn.cursor()
+    print ("Creating Dictionary Table...")
+    cur.execute("DROP TABLE IF EXISTS " + DICTIONARY_TABLE + ";")
+    cur.execute(dictionary_str)
+    conn.commit()
+
+#------------------------------------------------------------------------------
+
+def create_dictionary_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON " + DICTIONARY_TABLE + " ((lower(word)));")
+    cur.execute("CREATE INDEX ON " + DICTIONARY_TABLE + " ((lower(pos)));")
+    cur.execute("CREATE INDEX ON " + DICTIONARY_TABLE + " ((lower(category)));")
+    conn.commit()
+
+#------------------------------------------------------------------------------
+    
+def create_dictionary_tables(conn=None):
+    conn = ensure_connection(conn)
+    create_dictionary_table(conn)
+    create_dictionary_indexes(conn)
+
+#------------------------------------------------------------------------------
+# Find Dictionary Word
+#------------------------------------------------------------------------------
+
+def find_dictionary_word(word, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                "WHERE LOWER(word)=LOWER('" + word + "');")
+    rows = cur.fetchall()
+    return rows[0] if rows != [] else None
     
 #------------------------------------------------------------------------------
-# Root Vertices
+# Dictionary Table INSERT operation
 #------------------------------------------------------------------------------
 
+def add_dictionary_words(df, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    
+    # Inset string
+    insert_str = "INSERT INTO " + DICTIONARY_TABLE +\
+                 "(word, base, pos, category, all_pos) " +\
+                 "VALUES (%s, %s, %s, %s, %s);"
+
+    # Insert the words 
+    # data_list = [list(row) for row in rdf.itertuples(index=False)]
+    # cur.executemany(insert_str, data_list)
+ 
+    # Insert the words
+    for index, row in df.iterrows():
+        data = list(row)
+        execute_query(insert_str, data=data)
+    
+    # Commit and close
+    conn.commit()
+    conn.close()
+        
+    return True
+
 #*****************************************************************************
-# Part 5: Status Operations
+# Part 6: Status Operations
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
 # Miscellneous Output Functions.
 #------------------------------------------------------------------------------
 
-import sys
-from  urllib.parse import unquote
-
 def print_raw(text, separator):
     text = text + separator
     textbytes = unquote(text).encode("utf-8")
     sys.stdout.buffer.write(textbytes)
+
+    
+#*****************************************************************************
+# Part 5: Status Operations
+#*****************************************************************************
 
 #------------------------------------------------------------------------------
     
