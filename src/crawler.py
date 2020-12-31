@@ -1,8 +1,27 @@
+#********************************************************************
+# WEB CRAWLING MODULE
+#
+# Part 1: Crawling Wikipedia
+# Part 2: Scrapy
+# Part 3: Main Runtime
+#
+#********************************************************************
+
+
+#--------------------------------------------------------------------
+# Imports 
+#--------------------------------------------------------------------
+
 import sys
 
 from scraper import get_related_wikipedia_topics
 from postgres import create_wiki_db_graph_tables, count_wiki_vertices
 from postgres import add_wiki_vertices, add_wiki_edges 
+
+
+#********************************************************************
+# Part 1: Crawling Wikipedia
+#********************************************************************
 
 DEFAULT_CRAWL_DEPTH=2
 
@@ -47,11 +66,32 @@ def crawl_wikipedia (depth=DEFAULT_CRAWL_DEPTH, reset=False, topic='Art'):
         create_wiki_db_graph_tables()
     crawl_wiki(depth, topic)
 
-#-------------------------------------------------------------------------------
-# Runtime
-#-------------------------------------------------------------------------------
+#****************************************************************************
+# Part 2: Scrapy
+#****************************************************************************
 
-#crawl_wikipedia(3)
+# Scrapy Documentation: https://docs.scrapy.org/en/latest/topics/spiders.html
+
+import scrapy as sp
+
+class MySpider(scrapy.Spider):
+    name = 'example.com'
+    allowed_domains = ['example.com']
+    start_urls = [
+        'http://www.example.com/1.html',
+        'http://www.example.com/2.html',
+        'http://www.example.com/3.html',
+    ]
+
+    def parse(self, response):
+        self.logger.info('A response from %s just arrived!', response.url)
+
+#****************************************************************************
+# Part 2: Main Runtime
+#****************************************************************************
+
+# This crawls Wikipedia starting with <topic> and stores the results in
+# the wikidb database.
 
 def main():
     args = sys.argv

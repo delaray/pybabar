@@ -1,4 +1,11 @@
+#********************************************************************
+# Vocabulary Analysis MODULE
+#********************************************************************
+
+# Python Imports
 import pandas as pd
+
+# Project Imports
 from src.utils import my_round
 from src.utils import make_results_pathname
 from src.embeddings import create_embeddings_from_df

@@ -3,13 +3,14 @@
 #------------------------------------------------------------------------
 
 # Python modules
-from multiprocessing import Process, Manager, freeze_support
-import pandas as pd
 import pprint
+import pandas as pd
+from multiprocessing import Process, Manager, freeze_support
+
 
 # Pybabar
-import processes
-import postgres
+import src.processes
+import src.postgres
 
 #------------------------------------------------------------------------
 # Global Parameters

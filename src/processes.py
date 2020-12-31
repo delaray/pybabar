@@ -1,8 +1,13 @@
-# Python multithreading for whatever reason seems to require that the workers be in
-# a different module.
+#********************************************************************
+# MULTIPROCESSING MODULE
+#
+#********************************************************************
 
-import postgres
-import clustering
+# Python multithreading for whatever reason seems to require that the
+# workers be in a different module.
+
+import src.postgres
+import src.clustering
 
 #------------------------------------------------------------------------------
 

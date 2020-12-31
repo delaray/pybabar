@@ -23,12 +23,13 @@
 
 import psycopg2
 import string
-from multiprocessing import Process, Manager, freeze_support
-import pandas as pd
 import pprint
-from functools import reduce
+import pandas as pd
 
-import processes
+from functools import reduce
+from multiprocessing import Process, Manager, freeze_support
+
+import src.processes
 
 #******************************************************************************
 # TABLE CREATION: Vertices, Eges, Root Vertices
@@ -453,7 +454,6 @@ def find_wiki_in_neighbors(topic_name, conn=None, threads=8):
 #------------------------------------------------------------------------------
 # Root Vertex Table Retrieval Operations
 #------------------------------------------------------------------------------
-
 
 def get_root_vertex(vertex_id, conn=None):
     conn = ensure_connection(conn)

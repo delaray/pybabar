@@ -1,7 +1,14 @@
-from bs4 import BeautifulSoup, SoupStrainer
-import requests
+#********************************************************************
+# MERRIAM WEBSTER SCRAPING Module
+#********************************************************************
 
-import scraper
+# Python Imports
+import requests
+from bs4 import BeautifulSoup, SoupStrainer
+
+
+# Project Imports
+import src.scraper
 
 #--------------------------------------------------------------------
 # Merriam Webster Scraper
