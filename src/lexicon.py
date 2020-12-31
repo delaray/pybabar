@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 
 
 # Project Imports
-import src.scraper
+from src.scraper import get_url_response
 
 #--------------------------------------------------------------------
 # Merriam Webster Scraper
@@ -23,7 +23,9 @@ import src.scraper
 def extract_pos (response):
     pos = []
     soup = BeautifulSoup(response.content, 'lxml')
-    for link in soup.find_all('span'):
+    results =  soup.find_all('span')
+    print ('Span length: ' + str(len(results)))
+    for link in results:
         if link.get('class')==['fl']:
             pos.append(link)
     pos = pos[0].contents
@@ -33,7 +35,7 @@ def extract_pos (response):
 
 def get_word_pos(word):
     word_url = 'https://www.merriam-webster.com/dictionary/' + word
-    response = scraper.get_url_response(word_url)
+    response = get_url_response(word_url)
     pos = extract_pos(response)
     return pos
 
@@ -43,11 +45,13 @@ def get_word_pos(word):
 
 word_def_class = ['dt', '']
 
-def extract_def (response):
+def extract_definitionx(response):
     pos = []
     classes = []
     soup = BeautifulSoup(response.content, 'lxml')
-    for link in soup.find_all('span'):
+    results =  soup.find_all('span')
+    print ('Span length: ' + str(len(results)))
+    for link in results:
         # if not link.get('class')==None:
         #     classes.append(link.get('class'))
         if link.get('class')==word_def_class:
@@ -59,9 +63,9 @@ def extract_def (response):
 
 def get_word_definition(word):
     word_url = 'https://www.merriam-webster.com/dictionary/' + word
-    response = scraper.get_url_response(word_url)
-    defn = extract_def(response)
-    return defn
+    response = get_url_response(word_url)
+    definition = extract_definition(response)
+    return definition
 
 #--------------------------------------------------------------------
 # End of File
