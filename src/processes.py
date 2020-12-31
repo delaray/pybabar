@@ -6,13 +6,13 @@
 # Python multithreading for whatever reason seems to require that the
 # workers be in a different module.
 
-import src.postgres
-import src.clustering
+import src.database as db
+import src.clustering as cs
 
 #------------------------------------------------------------------------------
 
 def neighbor_worker (topic, tables, procnum, return_dict):
-    results = postgres.find_wiki_in_neighbors (topic, tables)
+    results = db.find_wiki_in_neighbors (topic, tables)
     return_dict[procnum] = results
 
 #------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ def neighbor_worker (topic, tables, procnum, return_dict):
 
 def pdm_worker (l1, l2, procnum, return_dict):
     conn = ensure_connection()
-    m = clustering.generate_distance_matrix (l1, l2, conn)
+    m = cs.generate_distance_matrix (l1, l2, conn)
     return_dict[procnum] = m
 
 #------------------------------------------------------------------------------

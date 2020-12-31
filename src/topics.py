@@ -4,8 +4,8 @@
 
 import nltk
 
-from src.postgres import find_wiki_in_neighbors 
-from src.postgres import find_wiki_out_neighbors
+from src.database import find_wiki_in_neighbors 
+from src.database import find_wiki_out_neighbors
 
 #------------------------------------------------------------------------------
 # Filter Topics

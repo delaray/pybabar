@@ -1,14 +1,24 @@
 #********************************************************************
-# MERRIAM WEBSTER SCRAPING Module
+# LEXICONS MODULE
+#
+# Part 1: Merriam Webster Scraping
+# Part 2: Parts of Speech Lexicon
+#
 #********************************************************************
 
 # Python Imports
 import requests
 from bs4 import BeautifulSoup, SoupStrainer
+import pandas as pd
 
 
 # Project Imports
+from src.utils import make_data_pathname
 from src.scraper import get_url_data
+
+#********************************************************************
+# Part 1: MERRIAM WEBSTER SCRAPING
+#********************************************************************
 
 #--------------------------------------------------------------------
 # Merriam Webster Scraper
@@ -72,6 +82,32 @@ def get_word_definition(word):
         return definition
     else:
         return None
+
+#********************************************************************
+# Part 2: Parts of Speech Lexicon
+#********************************************************************
+
+#--------------------------------------------------------------------
+# Load Parts of Speech
+#--------------------------------------------------------------------
+
+POS_FILE = make_data_pathname('parts-of-speech.csv')
+
+def load_parts_of_speech_lexicon(file=POS_FILE):
+    columns = ['word', 'base', 'pos', 'type', 'all-pos']
+    df = pd.read_csv(file, names=columns, encoding='latin-1')
+    return df
+
+
+#--------------------------------------------------------------------
+# Load Unknown Words
+#--------------------------------------------------------------------
+
+UNKNOWN_WORDS_FILE = make_data_pathname('unknown-words.csv')
+
+def load_unknown_words_lexicon(file=UNKNOWN_WORDS_FILE):
+    df = pd.read_csv(file, names=['word', 'status'])
+    return df
 
 #--------------------------------------------------------------------
 # End of File

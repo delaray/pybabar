@@ -10,7 +10,6 @@ from multiprocessing import Process, Manager, freeze_support
 
 # Pybabar
 import src.processes
-import src.postgres
 
 #------------------------------------------------------------------------
 # Global Parameters
@@ -66,7 +65,6 @@ def topic_belongs_in_cluster_p(topic, cluster, threshold=DEFAULT_THRESHOLD):
 # TODO: Use an object to keep the matri and indices together
 
 def generate_distance_matrix (topics1, topics2, conn=None):
-    conn = postgres.ensure_connection(conn)
     # Populate the matrix
     matrix = []
     for topic1 in topics1:
