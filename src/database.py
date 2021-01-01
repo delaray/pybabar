@@ -100,6 +100,15 @@ def execute_query(query, data=(), conn=None):
     cur = conn.cursor()
     cur.execute(query, data)
 
+# -----------------------------------------------------------------------------
+
+def run_query(query, data=(), conn=None):
+    conn = conn if conn != None else ensure_connection()
+    cur = conn.cursor()
+    cur.execute(query, data)
+    rows = cur.fetchall()
+    return rows
+
 #------------------------------------------------------------------------------
 # CSV File Row to DB Row String
 #------------------------------------------------------------------------------
@@ -894,19 +903,107 @@ def add_dictionary_words(df, conn=None):
                  "VALUES (%s, %s, %s, %s, %s);"
 
     # Insert the words 
-    # data_list = [list(row) for row in rdf.itertuples(index=False)]
-    # cur.executemany(insert_str, data_list)
+    data_list = [list(row) for row in df.itertuples(index=False)]
+    cur.executemany(insert_str, data_list)
  
     # Insert the words
-    for index, row in df.iterrows():
-        data = list(row)
-        execute_query(insert_str, data=data)
+    # for index, row in df.iterrows():
+    #     data = list(row)
+    #     execute_query(insert_str, data=data, conn=conn)
     
     # Commit and close
     conn.commit()
     conn.close()
         
     return True
+
+#------------------------------------------------------------------------------
+
+def count_dictionary_words(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE)
+    return result[0][0]
+
+#------------------------------------------------------------------------------
+# Unknown Words Table Creation
+#------------------------------------------------------------------------------
+
+UNKNOWN_WORDS_TABLE = 'dictionary_unknown'
+
+# NB: The priimary key will be a vertex id from the vertex table.
+
+UNKNOWN_WORDS_STR = "CREATE TABLE " + UNKNOWN_WORDS_TABLE + \
+                    "(id serial NOT NULL, " + \
+                    "word character varying, " + \
+                    "status character varying, " + \
+                    "CONSTRAINT unknown_words_id PRIMARY KEY (id));"
+
+#------------------------------------------------------------------------------
+
+def create_unknown_words_table(conn=None):
+    cur = conn.cursor()
+    print ("Creating Unknown Words Table...")
+    cur.execute("DROP TABLE IF EXISTS " + UNKNOWN_WORDS_TABLE + ";")
+    cur.execute(UNKNOWN_WORDS_STR)
+    conn.commit()
+
+#------------------------------------------------------------------------------
+
+def create_unknown_words_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON " + UNKNOWN_WORDS_TABLE + " ((lower(word)));")
+    conn.commit()
+
+#------------------------------------------------------------------------------
+    
+def create_unknown_words_tables(conn=None):
+    conn = ensure_connection(conn)
+    create_unknown_words_table(conn)
+    create_unknown_words_indexes(conn)
+
+#------------------------------------------------------------------------------
+# Find Unknown Words Word
+#------------------------------------------------------------------------------
+
+def find_unknown_word_word(word, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + UNKNOWN_WORDS_TABLE + " " + \
+                "WHERE LOWER(word)=LOWER('" + word + "');")
+    rows = cur.fetchall()
+    return rows[0] if rows != [] else None
+    
+#------------------------------------------------------------------------------
+# Unknown Words Table INSERT operation
+#------------------------------------------------------------------------------
+
+def add_unknown_words(df, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    
+    # Inset string
+    insert_str = "INSERT INTO " + UNKNOWN_WORDS_TABLE +\
+                 "(word, status) " +\
+                 "VALUES (%s, %s);"
+
+    # Insert the words 
+    data_list = [list(row) for row in df.itertuples(index=False)]
+    cur.executemany(insert_str, data_list)
+     
+    # Commit and close
+    conn.commit()
+    conn.close()
+        
+    return True
+
+#------------------------------------------------------------------------------
+
+def count_unknown_words(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    result = run_query ("SELECT count(*) from " + UNKNOWN_WORDS_TABLE)
+    return result[0][0]
 
 #*****************************************************************************
 # Part 6: Status Operations

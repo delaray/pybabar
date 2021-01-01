@@ -106,7 +106,7 @@ def load_parts_of_speech_lexicon(file=POS_FILE):
 UNKNOWN_WORDS_FILE = make_data_pathname('unknown-words.csv')
 
 def load_unknown_words_lexicon(file=UNKNOWN_WORDS_FILE):
-    df = pd.read_csv(file, names=['word', 'status'])
+    df = pd.read_csv(file, names=['word', 'status'], encoding='latin-1')
     return df
 
 #--------------------------------------------------------------------
