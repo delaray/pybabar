@@ -898,8 +898,18 @@ def find_dictionary_words(word, conn=None):
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
                 "WHERE LOWER(word) LIKE('%" + word + "%');")
-    rows = cur.fetchall()
-    return rows if rows != [] else None
+    return cur.fetchall()
+
+#------------------------------------------------------------------------------
+# Find Dictionary Definitions
+#------------------------------------------------------------------------------
+
+def find_dictionary_definitions(definition, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                "WHERE LOWER(definition) LIKE LOWER('%" + definition + "%');")
+    return cur.fetchall()
 
 #------------------------------------------------------------------------------
 # Find Undefine Words

@@ -116,7 +116,6 @@ def load_unknown_words_lexicon(file=UNKNOWN_WORDS_FILE):
     df = pd.read_csv(file, names=['word', 'status'], encoding='latin-1')
     return df
 
-
 #********************************************************************
 # Part 3 : Updating Dictionary Word Definitions
 #********************************************************************
