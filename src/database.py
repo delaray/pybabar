@@ -888,7 +888,31 @@ def find_dictionary_word(word, conn=None):
                 "WHERE LOWER(word)=LOWER('" + word + "');")
     rows = cur.fetchall()
     return rows[0] if rows != [] else None
-    
+
+#------------------------------------------------------------------------------
+# Find Dictionary Words
+#------------------------------------------------------------------------------
+
+def find_dictionary_words(word, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                "WHERE LOWER(word) LIKE('%" + word + "%');")
+    rows = cur.fetchall()
+    return rows if rows != [] else None
+
+#------------------------------------------------------------------------------
+# Find Undefine Words
+#------------------------------------------------------------------------------
+
+def find_undefined_words(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                "WHERE definition IS NULL;")
+    rows = cur.fetchall()
+    return rows if rows != [] else None
+
 #------------------------------------------------------------------------------
 # Dictionary Table INSERT operation
 #------------------------------------------------------------------------------
@@ -918,11 +942,38 @@ def add_dictionary_words(df, conn=None):
     return True
 
 #------------------------------------------------------------------------------
+# Update Word Definition
+#------------------------------------------------------------------------------
+
+# This commits on each update.
+
+def update_word_definition(id, definition, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    update_str = "UPDATE " + DICTIONARY_TABLE + " SET definition='" + \
+                 definition + \
+                 "' WHERE id=" + str(id) + ";"
+    cur.execute(update_str)
+    conn.commit()
+    return True
+
+#------------------------------------------------------------------------------
+# Counting Dictionary Words
+#------------------------------------------------------------------------------
 
 def count_dictionary_words(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE)
+    return result[0][0]
+
+#------------------------------------------------------------------------------
+
+def count_defined_words(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE + \
+                        " WHERE definition IS NOT NULL;")
     return result[0][0]
 
 #------------------------------------------------------------------------------
@@ -1006,7 +1057,7 @@ def count_unknown_words(conn=None):
     return result[0][0]
 
 #*****************************************************************************
-# Part 6: Status Operations
+# Part 6: Miscellaneous Operations
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
@@ -1017,15 +1068,6 @@ def print_raw(text, separator):
     text = text + separator
     textbytes = unquote(text).encode("utf-8")
     sys.stdout.buffer.write(textbytes)
-
-    
-#*****************************************************************************
-# Part 5: Status Operations
-#*****************************************************************************
-
-#------------------------------------------------------------------------------
-    
-# create_wiki_db_graph_tables()
 
 #------------------------------------------------------------------------------
 # End of File
