@@ -2,7 +2,8 @@
 # LEXICONS MODULE
 #
 # Part 1: Merriam Webster Scraping
-# Part 2: Parts of Speech Lexicon
+# Part 2: Parts of Speech & Unknwon Words Lexicons
+# Part 3 : Updating Dictionary Word Definitions
 #
 #********************************************************************
 
@@ -90,7 +91,7 @@ def get_word_definition(word):
         return None
 
 #********************************************************************
-# Part 2: Parts of Speech Lexicon
+# Part 2: Parts of Speech & Unknwon Words Lexicons
 #********************************************************************
 
 #--------------------------------------------------------------------
@@ -117,7 +118,7 @@ def load_unknown_words_lexicon(file=UNKNOWN_WORDS_FILE):
 
 
 #********************************************************************
-# Part 3 : Dictionary Word Definitions
+# Part 3 : Updating Dictionary Word Definitions
 #********************************************************************
 
 def update_word_definitions():
@@ -131,6 +132,8 @@ def update_word_definitions():
         word = row[1]
         definition = get_word_definition(word)
         if definition is not None:
+            definition = definition.replace("'", "")
+            definition = definition.replace('"', '')
             update_word_definition(id, definition)
     return True
 
