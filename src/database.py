@@ -50,7 +50,7 @@ import src.processes
 # Table Names
 #------------------------------------------------------------------------------
 
-vertex_table = 'wiki_vertices'
+VERTICES_TABLE = 'wiki_vertices'
 ROOT_VERTICES_TABLE='wiki_root_vertices'
 edge_table_prefix = 'wiki_edges_'
 
@@ -139,7 +139,7 @@ def split_list (a, n):
 # Vertex Table Creation
 #------------------------------------------------------------------------------
 
-create_vertices_str = "CREATE TABLE " + vertex_table + " (id serial NOT NULL, " + \
+create_vertices_str = "CREATE TABLE " + VERTICES_TABLE + " (id serial NOT NULL, " + \
                       "name character varying, " + \
                       "weight integer DEFAULT 0, " + \
                       "CONSTRAINT vertex_id PRIMARY KEY (id));"
@@ -147,14 +147,14 @@ create_vertices_str = "CREATE TABLE " + vertex_table + " (id serial NOT NULL, " 
 def create_vertices_table(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Vertices Table...")
-    cur.execute("DROP TABLE IF EXISTS " + vertex_table + ";")
+    cur.execute("DROP TABLE IF EXISTS " + VERTICES_TABLE + ";")
     cur.execute(create_vertices_str)
 
 #------------------------------------------------------------------------------
 
 def create_vertices_table_indexes(conn):
     cur = conn.cursor()
-    cur.execute("CREATE INDEX ON " + vertex_table + " ((lower(name)));")
+    cur.execute("CREATE INDEX ON " + VERTICES_TABLE + " ((lower(name)));")
     conn.commit()
 
 #------------------------------------------------------------------------------
@@ -304,7 +304,7 @@ def create_wiki_db_graph_tables():
 def get_wiki_vertex(vertex_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + vertex_table + " WHERE id=" + str(vertex_id) + ";")
+    cur.execute("SELECT * FROM " + VERTICES_TABLE + " WHERE id=" + str(vertex_id) + ";")
     rows = cur.fetchall()
     return rows[0] if rows != [] else None
 
@@ -316,7 +316,7 @@ def find_wiki_vertex(vertex_name, conn=None):
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + vertex_table + " " + \
+        cur.execute("SELECT * FROM " + VERTICES_TABLE + " " + \
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
         return rows[0] if rows != [] else None
@@ -326,7 +326,7 @@ def find_wiki_vertex(vertex_name, conn=None):
 def vertex_id_name(vertex_id,  conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + vertex_table + " WHERE id=" + str(vertex_id) + ";")
+    cur.execute("SELECT * FROM " + VERTICES_TABLE + " WHERE id=" + str(vertex_id) + ";")
     rows = cur.fetchall()
     return rows[0][1]
 
@@ -345,7 +345,7 @@ def get_wiki_vertices(vertex_pattern, conn=None):
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + vertex_table + " " + \
+        cur.execute("SELECT * FROM " + VERTICES_TABLE + " " + \
                     "WHERE LOWER(name) like LOWER('" + vertex_pattern + "');")
         rows = cur.fetchall()
         return  rows
@@ -380,7 +380,7 @@ def root_vertex_name_p (vertex_name):
 def identify_root_vertices (pattern, conn=None):
     conn = ensure_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + vertex_table + " as wv " + \
+    cur.execute("SELECT * FROM " + VERTICES_TABLE + " as wv " + \
                 "WHERE wv.name NOT SIMILAR TO '%\_%' " + \
                 "AND wv.name NOT SIMILAR TO '%\#%'" + \
                 "AND LOWER(wv.name) like LOWER('" + pattern + "');")
@@ -406,7 +406,7 @@ def find_wiki_out_neighbors(topic_name, conn=None):
         letter = source_name_letter(topic_name)
         edge_table = edge_table_name(letter)
         cur.execute("SELECT * FROM " + edge_table + " as we " + \
-                    "JOIN " + vertex_table + " as wv on we.target = wv.id " + \
+                    "JOIN " + VERTICES_TABLE + " as wv on we.target = wv.id " + \
                     "WHERE source=" + str(topic_id) + ";")
         rows = cur.fetchall()
         return list(set([row[6] for row in rows]))
@@ -432,7 +432,7 @@ def _find_wiki_in_neighbors(topic_name, tables=None, conn=None):
         all_rows = []
         for edge_table in tables:
             cur.execute("SELECT * FROM " + edge_table + " as we " + \
-                        "JOIN " + vertex_table + " as wv on we.source = wv.id " + \
+                        "JOIN " + VERTICES_TABLE + " as wv on we.source = wv.id " + \
                         "WHERE target=" + str(topic_id) + ";")
             rows = cur.fetchall()
             all_rows += rows
@@ -487,7 +487,7 @@ def get_root_vertex(vertex_id, conn=None):
 
 #------------------------------------------------------------------------------
 
-def get_root_vertices(vertex_id, conn=None):
+def get_root_vertices(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + ";")
@@ -638,7 +638,7 @@ def add_wiki_vertex(vertex_name, conn=None, commit_p=False):
         conn = ensure_connection(conn)
         cur = conn.cursor()
         if find_wiki_vertex(vertex_name, conn) == None:
-            cur.execute("INSERT INTO " + vertex_table + " (name) VALUES ('" + vertex_name + "');")
+            cur.execute("INSERT INTO " + VERTICES_TABLE + " (name) VALUES ('" + vertex_name + "');")
             if commit_p == True:
                 conn.commit()
 
@@ -657,7 +657,7 @@ def update_vertex_weight(vertex_id, conn=None, commit=False):
     weight = count_vertex_out_neighbors (vertex_name, conn=conn)
     cur = conn.cursor()
     try:
-        cur.execute("UPDATE " + vertex_table + " SET weight = " + str(weight) + \
+        cur.execute("UPDATE " + VERTICES_TABLE + " SET weight = " + str(weight) + \
                     "WHERE id=" + str(vertex_id) + ";")
         if commit==True:
             conn.commit()
@@ -771,7 +771,7 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
 def find_bogus_vertices (conn=None):
     conn = ensure_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + vertex_table +  \
+    cur.execute("SELECT * FROM " + VERTICES_TABLE +  \
                 " WHERE name like '%\#%'")
     rows = cur.fetchall()
     return rows
@@ -793,7 +793,7 @@ def delete_bogus_vertex(vertex_name, conn=None):
 
     if len(out_neighbors) < 5 and len(in_neighbors) < 5:
         # Delete the vertex first
-        cur.execute("DELETE FROM " + vertex_table  + " as wv " + \
+        cur.execute("DELETE FROM " + VERTICES_TABLE  + " as wv " + \
                     " WHERE wv.id=" + str(vertex_id) + ";")
         conn.commit()
 
@@ -1164,6 +1164,51 @@ def create_root_subtopics_tables(conn=None):
     conn = ensure_connection(conn)
     create_root_subtopics_table(conn)
     create_root_subtopics_indexes(conn)
+
+#------------------------------------------------------------------------------
+# Root Subtopics Table Inserts
+#------------------------------------------------------------------------------
+
+def find_root_subtopics(root_id, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    
+
+#------------------------------------------------------------------------------
+# Insert Root Subtopics
+#------------------------------------------------------------------------------
+
+# Inseerts potential subtopics of each root vertex.
+
+def insert_root_subtopics():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    root_topics = get_root_vertices()
+    count = 0
+    for root_topic in root_topics:
+        root_id = root_topic[0]
+        vertex_name = root_topic[1]
+        query ="SELECT * FROM " + ROOT_SUBTOPICS_TABLE + \
+               " WHERE root_id=" + str(root_id) + ";"
+        cur.execute(query)
+        processed = cur.fetchall()
+        # Only process if unprocessed
+        if processed == []:
+            # Get all potential_subtopics
+            query = "SELECT * FROM " + VERTICES_TABLE + \
+                    " WHERE lower(name) LIKE LOWER('%" + vertex_name + "%');"
+            cur.execute(query)
+            subtopics = cur.fetchall()
+            for subtopic in subtopics:
+                query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
+                        "(root_id, subtopic_id) " + \
+                        " VALUES(%s, %s);"
+                execute_query(query, [root_id, subtopic[0]])
+            conn.commit()
+            count += 1
+            if count%100==0:
+                print ("Root topics processed: " + str(count))
+    return True
 
 #*****************************************************************************
 # Part 9: Miscellaneous Operations
