@@ -7,7 +7,10 @@
 # Part 3: Status Operations
 # Part 4: Maintenance Operations
 # Part 5: Deletion operations
-# Part 6: Lexicon Tables
+# Part 6: Vertex and Edge Types
+# Part 7: Lexicon Tables
+# Part 8: Root Subtopics Tables
+# Part 9: Miscellaneous Operations
 #
 #*****************************************************************************
 #
@@ -890,6 +893,18 @@ def find_dictionary_word(word, conn=None):
     return rows[0] if rows != [] else None
 
 #------------------------------------------------------------------------------
+# Find Dictionary Word
+#------------------------------------------------------------------------------
+
+def find_dictionary_word_by_id(id, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    query = "SELECT * FROM " + DICTIONARY_TABLE + " WHERE id=" + str(id) + ";"
+    cur.execute(query)
+    rows = cur.fetchall()
+    return rows[0] if rows != [] else None
+
+#------------------------------------------------------------------------------
 # Find Dictionary Words
 #------------------------------------------------------------------------------
 
@@ -1027,7 +1042,7 @@ def create_unknown_words_tables(conn=None):
 # Find Unknown Words Word
 #------------------------------------------------------------------------------
 
-def find_unknown_word_word(word, conn=None):
+def find_unknown_word(word, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT * FROM " + UNKNOWN_WORDS_TABLE + " " + \
@@ -1067,8 +1082,114 @@ def count_unknown_words(conn=None):
     return result[0][0]
 
 #*****************************************************************************
-# Part 6: Miscellaneous Operations
+# Part 6: Vertex and Edge Types
 #*****************************************************************************
+
+def update_root_vertex_types():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    
+    # Get the Untypedrot vertices
+    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " WHERE type IS NULL;")
+    rows = cur.fetchall()
+    print ('\nTotal root vertices: ' + str(count_root_vertices()))
+    print ('Untyped root vertices: ' + str(len(rows)) + '\n')
+
+    # Update those vertices that have a category in the dictionary.
+    count = 0
+    for row in rows:
+        word_entry = find_dictionary_word(row[1])
+        if word_entry is not None:
+            id = word_entry[0]
+            word_type = word_entry[4]
+            if type != '' or type=='NIL':
+                query = "UPDATE " + ROOT_VERTICES_TABLE + " SET type='" + word_type + \
+                        "' WHERE id=" + str(id) + ";"
+                cur.execute(query)
+                conn.commit()
+                count += 1
+                if count%10==0:
+                    print ("Root vertices updated: " + str(count))
+    return True
+
+
+#------------------------------------------------------------------------------
+
+def count_typed_root_vertices():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    result = run_query ("SELECT count(*) from " + ROOT_VERTICES_TABLE + \
+                        " WHERE type IS NOT NULL;")
+    return result[0][0]
+
+#*****************************************************************************
+# Part 8: Root Subtopics Table
+#*****************************************************************************
+
+#------------------------------------------------------------------------------
+# Root Subtopics Table Creation
+#------------------------------------------------------------------------------
+
+ROOT_SUBTOPICS_TABLE = 'root_subtopics'
+
+# NB: The priimary key will be a vertex id from the vertex table.
+
+ROOT_SUBTOPICS_STR = "CREATE TABLE " + ROOT_SUBTOPICS_TABLE + \
+                    "(id serial NOT NULL, " + \
+                    "root_id integer NOT NULL, " + \
+                    "subtopic_id integer NOT NULL, " + \
+                    "weight integer DEFAULT 0, " + \
+                    "CONSTRAINT root_subtopics_id PRIMARY KEY (id));"
+
+#------------------------------------------------------------------------------
+
+def create_root_subtopics_table(conn=None):
+    cur = conn.cursor()
+    print ("Creating Root Subtopics Table...")
+    cur.execute("DROP TABLE IF EXISTS " + ROOT_SUBTOPICS_TABLE + ";")
+    cur.execute(ROOT_SUBTOPICS_STR)
+    conn.commit()
+
+#------------------------------------------------------------------------------
+
+def create_root_subtopics_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((root_id));")
+    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((subtopic_id));")
+    conn.commit()
+
+#------------------------------------------------------------------------------
+    
+def create_root_subtopics_tables(conn=None):
+    conn = ensure_connection(conn)
+    create_root_subtopics_table(conn)
+    create_root_subtopics_indexes(conn)
+
+#*****************************************************************************
+# Part 9: Miscellaneous Operations
+#*****************************************************************************
+
+# This replaces all NIL and '' categories in the dictionary with
+# a NULL DB value.
+
+def update_nil_category_entries():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    query = "SELECT id from " + DICTIONARY_TABLE + \
+             " WHERE category='NIL'" + \
+             " OR category='';"
+    results = run_query(query)
+    count = 0
+    for result in results:
+        id = result[0]
+        update_str = "UPDATE " + DICTIONARY_TABLE + " SET category=NULL" +\
+            " WHERE id=" + str(id) + ";"
+        execute_query(update_str)
+        conn.commit
+        count += 1
+        if count%1000==0:
+            print ('Updated categories: ' + str(count))
+    return True
 
 #------------------------------------------------------------------------------
 # Miscellneous Output Functions.

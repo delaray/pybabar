@@ -105,7 +105,6 @@ def load_parts_of_speech_lexicon(file=POS_FILE):
     df = pd.read_csv(file, names=columns, encoding='latin-1')
     return df
 
-
 #--------------------------------------------------------------------
 # Load Unknown Words
 #--------------------------------------------------------------------
