@@ -66,6 +66,7 @@ def execute_query(query, data=(), conn=None):
     conn = conn if conn != None else ensure_connection()
     cur = conn.cursor()
     cur.execute(query, data)
+    conn.commit()
 
 # -----------------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ def run_query(query, data=(), conn=None):
 
 # -----------------------------------------------------------------------------
 
-def count_table_rows(table_name,conn=conn):
+def count_table_rows(table_name,conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT count(*) FROM " + table_name + ";")
@@ -1033,7 +1034,7 @@ def update_nil_category_entries():
         id = result[0]
         update_str = "UPDATE " + DICTIONARY_TABLE + " SET category = NULL" +\
                      " WHERE id = " + str(id) + ";"
-        execute_query(update_str, conn=conn)
+        execute_query(update_str)
         count += 1
         if count%1000==0:
             print ('Categories updated: ' + str(count))
@@ -1115,7 +1116,7 @@ def add_unknown_words(df, conn=None):
 #------------------------------------------------------------------------------
 
 def count_unknown_words(conn=None):
-    count_table_rows(UNKNOWN_WORDS_TABLE, conn=conn)
+    return count_table_rows(UNKNOWN_WORDS_TABLE, conn=conn)
 
 #*****************************************************************************
 # Part 6: Vertex and Edge Types
@@ -1203,7 +1204,7 @@ def find_root_subtopics(root_id, conn=None):
 
 #------------------------------------------------------------------------------
 
-def count_root_subtopics(conn):
+def count_root_subtopics(conn=None):
     return count_table_rows(ROOT_SUBTOPICS_TABLE, conn=conn)
 
 #------------------------------------------------------------------------------
@@ -1215,7 +1216,7 @@ def count_root_subtopics(conn):
 def insert_root_subtopics():
     conn = ensure_connection()
     cur = conn.cursor()
-    root_topics = get_root_vertices()
+    root_topics = get_root_vertices(conn=conn)
     count = 0
     for root_topic in root_topics:
         root_id = root_topic[0]
@@ -1231,15 +1232,22 @@ def insert_root_subtopics():
                     " WHERE lower(name) LIKE LOWER('%" + vertex_name + "%');"
             cur.execute(query)
             subtopics = cur.fetchall()
+            # print ("Root topic: " + vertex_name + ", Subtopics: " + str(len(subtopics)))
             for subtopic in subtopics:
-                query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
-                        "(root_id, subtopic_id) " + \
-                        " VALUES(%s, %s);"
-                execute_query(query, data=[root_id, subtopic[0]], conn=conn)
+                subtopic_tokens = list(map (lambda x: x.lower(), subtopic[1].split('_')))
+                if vertex_name.lower() in subtopic_tokens:
+                    query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
+                             " (root_id, subtopic_id) " + \
+                             " VALUES (%s, %s);"
+                    execute_query(query, data=(root_id, subtopic[0]), conn=conn)
             conn.commit()
             count += 1
             if count%100==0:
+                x = count_root_subtopics()
                 print ("Root topics processed: " + str(count))
+                print ("Total subtopics added: " + str(x))
+                print ("-------------------------------------------------")
+    conn.close()
     return True
 
 #*****************************************************************************
