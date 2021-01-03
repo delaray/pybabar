@@ -2,6 +2,7 @@
 # WIKIDB POSTGRES DB INTERFACE
 #*****************************************************************************
 #
+# Part 0: Generic Functions
 # Part 1: Creation operations
 # Part 2: Retrieval operations
 # Part 3: Status Operations
@@ -39,45 +40,8 @@ from multiprocessing import Process, Manager, freeze_support
 import src.processes
 
 #******************************************************************************
-# TABLE CREATION: Vertices, Eges, Root Vertices
+# Part 0: DB Connection and generic functions
 #******************************************************************************
-
-#*****************************************************************************
-# Part 1: Table and Index Creation
-#*****************************************************************************
-
-#------------------------------------------------------------------------------
-# Table Names
-#------------------------------------------------------------------------------
-
-VERTICES_TABLE = 'wiki_vertices'
-ROOT_VERTICES_TABLE='wiki_root_vertices'
-edge_table_prefix = 'wiki_edges_'
-
-#------------------------------------------------------------------------------
-
-# There are about 50,000,000 edges and we divide them amongst 37 tabbles based
-# the first letter of te edge's source vertex name.
-
-# Use both letters and digits given the number of digit based topic names.
-
-# TODO: Convert to constant.
-
-def table_suffixes():
-    return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
-
-#------------------------------------------------------------------------------
-
-def source_name_letter (name):
-    letter = name[0].lower()
-    if letter in table_suffixes():
-        return letter
-    else:
-        return 'z'
-
-#------------------------------------------------------------------------------
-
-DEFAULT_EDGE_TYPE = 'related'
 
 #------------------------------------------------------------------------------
 # DB Connection
@@ -112,6 +76,15 @@ def run_query(query, data=(), conn=None):
     rows = cur.fetchall()
     return rows
 
+# -----------------------------------------------------------------------------
+
+def count_table_rows(table_name,conn=conn):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT count(*) FROM " + table_name + ";")
+    rows = cur.fetchall()
+    return rows[0][0]
+
 #------------------------------------------------------------------------------
 # CSV File Row to DB Row String
 #------------------------------------------------------------------------------
@@ -134,6 +107,43 @@ def row_to_str (row):
 def split_list (a, n):
     k, m = divmod(len(a), n)
     return list (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+#*****************************************************************************
+# Part 1: Table and Index Creation: Vertices, Edges and Root Vertices
+#*****************************************************************************
+
+#------------------------------------------------------------------------------
+# Table Names
+#------------------------------------------------------------------------------
+
+VERTICES_TABLE = 'wiki_vertices'
+ROOT_VERTICES_TABLE='wiki_root_vertices'
+edge_table_prefix = 'wiki_edges_'
+
+#------------------------------------------------------------------------------
+
+# There are about 50,000,000 edges and we divide them amongst 37 tabbles based
+# the first letter of te edge's source vertex name.
+
+# Use both letters and digits given the number of digit based topic names.
+
+# TODO: Convert to constant.
+
+def table_suffixes():
+    return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
+
+#------------------------------------------------------------------------------
+
+def source_name_letter (name):
+    letter = name[0].lower()
+    if letter in table_suffixes():
+        return letter
+    else:
+        return 'z'
+
+#------------------------------------------------------------------------------
+
+DEFAULT_EDGE_TYPE = 'related'
 
 #------------------------------------------------------------------------------
 # Vertex Table Creation
@@ -195,6 +205,8 @@ def create_root_vertices_tables(conn=None):
     create_root_vertices_table_indexes(conn)
 
 #------------------------------------------------------------------------------
+# Add Root Vertex
+#------------------------------------------------------------------------------
 
 root_fields = "(id, name, weight, outdegree)"
     
@@ -208,6 +220,13 @@ def add_root_vertex(row, conn=None, commit=False):
             conn.commit()
     except Exception as err:
         print ("Error: " + str(err))
+       
+#------------------------------------------------------------------------------
+# Count Root Vertices
+#------------------------------------------------------------------------------
+
+def count_root_vertices(conn=None):
+    return count_table_rows(ROOT_VERTICES_TABLE)
 
 #------------------------------------------------------------------------------
 # Dumpings Tables as CSVs
@@ -579,20 +598,12 @@ def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
 #******************************************************************************
 
 def count_wiki_vertices(conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT count(*) FROM wiki_vertices")
-    rows = cur.fetchall()
-    return rows[0][0]
+    return count_table_rows('wiki_vertices', conn)
 
 #------------------------------------------------------------------------------
 
 def count_root_vertices(conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT count(*) FROM wiki_root_vertices")
-    rows = cur.fetchall()
-    return rows[0][0]
+    return count_table_rows('wiki_root_vertices', conn)
 
 #------------------------------------------------------------------------------
 
@@ -611,9 +622,8 @@ def count_wiki_edges_by_table(conn=None):
     edge_counts = {}
     for letter in table_suffixes():
         edge_table = edge_table_name(letter)
-        cur.execute("SELECT count(*) FROM " + edge_table)
-        rows = cur.fetchall()
-        edge_counts.update({edge_table : rows[0][0]})
+        count = count_table_rows(edge_table, conn=conn)
+        edge_counts.update({edge_table : count})
     return edge_counts
     
 #------------------------------------------------------------------------------
@@ -954,12 +964,7 @@ def add_dictionary_words(df, conn=None):
     # Insert the words 
     data_list = [list(row) for row in df.itertuples(index=False)]
     cur.executemany(insert_str, data_list)
- 
-    # Insert the words
-    # for index, row in df.iterrows():
-    #     data = list(row)
-    #     execute_query(insert_str, data=data, conn=conn)
-    
+     
     # Commit and close
     conn.commit()
     conn.close()
@@ -987,10 +992,7 @@ def update_word_definition(id, definition, conn=None):
 #------------------------------------------------------------------------------
 
 def count_dictionary_words(conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE)
-    return result[0][0]
+    return count_table_rows(DICTIONARY_TABLE, conn=conn)
 
 #------------------------------------------------------------------------------
 
@@ -998,8 +1000,45 @@ def count_defined_words(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE + \
-                        " WHERE definition IS NOT NULL;")
+                        " WHERE definition IS NOT NULL;",
+                        conn=conn)
     return result[0][0]
+#------------------------------------------------------------------------------
+# NIL Category Entries
+#------------------------------------------------------------------------------
+
+# Categories can potentially be created with NIL values from Common Lisp
+# generted data. THese functions clean up those values.
+
+def get_nil_category_entries(conn=None):
+    conn = ensure_connection(conn)
+    query = "SELECT id, category from " + DICTIONARY_TABLE + \
+            " WHERE category='NIL'" + \
+            " OR category='';"
+    results = run_query(query, conn=conn)
+    return results
+
+#------------------------------------------------------------------------------
+
+# This replaces all NIL and '' category values in the dictionary with
+# a NULL DB value.
+
+def update_nil_category_entries():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    results = get_nil_category_entries(conn=conn)
+    count = 0
+    print ('\nTotal entries to update: ' + str(len(results)) + '\n')
+    for result in results:
+        id = result[0]
+        update_str = "UPDATE " + DICTIONARY_TABLE + " SET category = NULL" +\
+                     " WHERE id = " + str(id) + ";"
+        execute_query(update_str, conn=conn)
+        count += 1
+        if count%1000==0:
+            print ('Categories updated: ' + str(count))
+    conn.commit()
+    return True
 
 #------------------------------------------------------------------------------
 # Unknown Words Table Creation
@@ -1076,10 +1115,7 @@ def add_unknown_words(df, conn=None):
 #------------------------------------------------------------------------------
 
 def count_unknown_words(conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    result = run_query ("SELECT count(*) from " + UNKNOWN_WORDS_TABLE)
-    return result[0][0]
+    count_table_rows(UNKNOWN_WORDS_TABLE, conn=conn)
 
 #*****************************************************************************
 # Part 6: Vertex and Edge Types
@@ -1113,14 +1149,6 @@ def update_root_vertex_types():
     return True
 
 
-#------------------------------------------------------------------------------
-
-def count_typed_root_vertices():
-    conn = ensure_connection()
-    cur = conn.cursor()
-    result = run_query ("SELECT count(*) from " + ROOT_VERTICES_TABLE + \
-                        " WHERE type IS NOT NULL;")
-    return result[0][0]
 
 #*****************************************************************************
 # Part 8: Root Subtopics Table
@@ -1166,13 +1194,17 @@ def create_root_subtopics_tables(conn=None):
     create_root_subtopics_indexes(conn)
 
 #------------------------------------------------------------------------------
-# Root Subtopics Table Inserts
+# Root Subtopics Table Operations
 #------------------------------------------------------------------------------
 
 def find_root_subtopics(root_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    
+
+#------------------------------------------------------------------------------
+
+def count_root_subtopics(conn):
+    return count_table_rows(ROOT_SUBTOPICS_TABLE, conn=conn)
 
 #------------------------------------------------------------------------------
 # Insert Root Subtopics
@@ -1203,7 +1235,7 @@ def insert_root_subtopics():
                 query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
                         "(root_id, subtopic_id) " + \
                         " VALUES(%s, %s);"
-                execute_query(query, [root_id, subtopic[0]])
+                execute_query(query, data=[root_id, subtopic[0]], conn=conn)
             conn.commit()
             count += 1
             if count%100==0:
@@ -1214,27 +1246,18 @@ def insert_root_subtopics():
 # Part 9: Miscellaneous Operations
 #*****************************************************************************
 
-# This replaces all NIL and '' categories in the dictionary with
-# a NULL DB value.
 
-def update_nil_category_entries():
+#------------------------------------------------------------------------------
+# Typed Root Vertices
+#------------------------------------------------------------------------------
+
+def count_typed_root_vertices():
     conn = ensure_connection()
     cur = conn.cursor()
-    query = "SELECT id from " + DICTIONARY_TABLE + \
-             " WHERE category='NIL'" + \
-             " OR category='';"
-    results = run_query(query)
-    count = 0
-    for result in results:
-        id = result[0]
-        update_str = "UPDATE " + DICTIONARY_TABLE + " SET category=NULL" +\
-            " WHERE id=" + str(id) + ";"
-        execute_query(update_str)
-        conn.commit
-        count += 1
-        if count%1000==0:
-            print ('Updated categories: ' + str(count))
-    return True
+    result = run_query ("SELECT count(*) from " + ROOT_VERTICES_TABLE + \
+                        " WHERE type IS NOT NULL;",
+                        conn=conn)
+    return result[0][0]
 
 #------------------------------------------------------------------------------
 # Miscellneous Output Functions.
