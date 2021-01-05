@@ -613,9 +613,10 @@ def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
 # Compute Topic Outdegree
 #------------------------------------------------------------------------------
 
-def compute_topic_outdegree(source_name, conn=None):
+def compute_topic_outdegree_by_name(source_name, source_id=None, conn=None):
     conn = ensure_connection(conn)
-    source_id = ensure_source_id(source_name, conn)
+    if source_id is None:
+        source_id = ensure_source_id(source_name, conn=conn)
     letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
     if source_id is None:
@@ -634,9 +635,10 @@ def compute_topic_outdegree(source_name, conn=None):
 # Compute Topic Indegree
 #------------------------------------------------------------------------------
 
-def compute_topic_indegree(source_name, conn=None):
+def compute_topic_indegree(source_name, source_id=None, conn=None):
     conn = ensure_connection(conn)
-    source_id = ensure_source_id(source_name, conn)
+    if source_id is None:
+        source_id = ensure_source_id(source_name, conn=conn)
     if source_id is not None:
         result = 0
         cur = conn.cursor()
@@ -650,6 +652,21 @@ def compute_topic_indegree(source_name, conn=None):
         return result
     else:
         return 0
+
+#------------------------------------------------------------------------------
+# Update Topic Indegree and Outdegree
+#------------------------------------------------------------------------------
+
+def update_topics_degrees():
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    query = "SELECT name,id from " + VERTICES_TABLE + " WHERE indegree=0"
+    cur.execute(query)
+    rows = cur.fetchall()
+    for row in rows:
+        name = row[0]
+        id = row[1]
+    return True
 
 #******************************************************************************
 # Part 3: Status Operations
