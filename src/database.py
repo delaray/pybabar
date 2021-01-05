@@ -146,14 +146,14 @@ edge_table_prefix = 'wiki_edges_'
 
 # TODO: Convert to constant.
 
-def table_suffixes():
+def edge_tables_suffixes():
     return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
 
 #------------------------------------------------------------------------------
 
 def source_name_letter (name):
     letter = name[0].lower()
-    if letter in table_suffixes():
+    if letter in edge_tables_suffixes():
         return letter
     else:
         return 'z'
@@ -264,14 +264,14 @@ def save_edge_tables(directory, conn=None):
 #------------------------------------------------------------------------------
 
 def edge_table_name(letter):
-    if letter in table_suffixes():
+    if letter in edge_tables_suffixes():
         return edge_table_prefix + letter
     else:
         return edge_table_prefix + '0'
 
 #------------------------------------------------------------------------------
 
-def edge_tables (suffixes=table_suffixes()):
+def edge_tables (suffixes=edge_tables_suffixes()):
     return [edge_table_name(x) for x in suffixes]
 
 #------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ def create_edge_table(conn, letter):
 def create_edge_tables(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Edge Tables...")
-    for letter in table_suffixes():
+    for letter in edge_tables_suffixes():
         create_edge_table(conn,letter)
         conn.commit()
     
@@ -609,7 +609,48 @@ def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
         rows = cur.fetchall()
         return rows
 
-    
+#------------------------------------------------------------------------------
+# Compute Topic Outdegree
+#------------------------------------------------------------------------------
+
+def compute_topic_outdegree(source_name, conn=None):
+    conn = ensure_connection(conn)
+    source_id = ensure_source_id(source_name, conn)
+    letter = source_name_letter(source_name)
+    edge_table = edge_table_name(letter)
+    if source_id is None:
+        return None
+    else:
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM " + edge_table + " " + \
+                    "WHERE source=" + str(source_id) + ";")
+        rows = cur.fetchall()
+        if rows != []:
+            return rows[0][0]
+        else:
+            return 0
+
+#------------------------------------------------------------------------------
+# Compute Topic Indegree
+#------------------------------------------------------------------------------
+
+def compute_topic_indegree(source_name, conn=None):
+    conn = ensure_connection(conn)
+    source_id = ensure_source_id(source_name, conn)
+    if source_id is not None:
+        result = 0
+        cur = conn.cursor()
+        for suffix in edge_tables_suffixes():
+            edge_table = edge_table_name(suffix)
+            cur.execute("SELECT count(*) FROM " + edge_table + " " + \
+                        "WHERE target=" + str(source_id) + ";")
+            rows = cur.fetchall()
+            if rows != []:
+                result += rows[0][0]
+        return result
+    else:
+        return 0
+
 #******************************************************************************
 # Part 3: Status Operations
 #******************************************************************************
@@ -637,7 +678,7 @@ def count_wiki_edges_by_table(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     edge_counts = {}
-    for letter in table_suffixes():
+    for letter in edge_tables_suffixes():
         edge_table = edge_table_name(letter)
         count = count_table_rows(edge_table, conn=conn)
         edge_counts.update({edge_table : count})
@@ -697,9 +738,10 @@ def update_vertex_weight(vertex_id, conn=None, commit=False):
 
 def update_all_vertex_weights ():
     count = 0
-    for symbol in table_suffixes():
+    for symbol in edge_tables_suffixes():
         rows = find_wiki_vertices(symbol + '%')
-        print ("Processinng " + str(len(vertices)) + " vertices starting with " + symbol + "...")
+        print ("Processinng " + str(len(vertices)) + " vertices starting with " +\
+               symbol + "...")
         conn = ensure_connection()
         for row in rows:
             if count%10000==0:
@@ -755,7 +797,7 @@ def generate_root_vertices_for_prefix (pattern):
 # This completely populates the root vertices table
 
 def generate_root_vertices():
-    vertex_prefixes = table_suffixes()
+    vertex_prefixes = edge_tables_suffixes()
     for prefix in vertex_prefixes:
         print ("\nProcessing prefix " + prefix)
         generate_root_vertices_for_prefix(prefix+"%")
@@ -764,7 +806,8 @@ def generate_root_vertices():
 # Wiki DB Edge Table Maintenace
 #------------------------------------------------------------------------------
 
-def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
+def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE,
+                  conn=None, commit_p=False):
     conn = ensure_connection(conn)
     letter = source_name_letter(source_name)
     edge_table = edge_table_name(letter)
@@ -778,7 +821,8 @@ def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=No
         if find_wiki_edge_by_id(edge_table, source_id, target_id, conn) == None:
             cur = conn.cursor()
             cur.execute("INSERT INTO " + edge_table + " (source, target, type) " +\
-                        "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" + edge_type + "');")
+                        "VALUES (" + str(source_id) + ", " + str(target_id) + ", '" +\
+                        edge_type + "');")
             if commit_p == True:
                 conn.commit()
 
@@ -1273,7 +1317,7 @@ def count_root_subtopics(conn=None):
 # Insert Root Subtopics
 #------------------------------------------------------------------------------
 
-# Inseerts potential subtopics of each root vertex.
+# Inserts potential subtopics of each root vertex.
 
 def insert_root_subtopics():
     conn = ensure_connection()
