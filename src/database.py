@@ -78,11 +78,27 @@ def run_query(query, data=(), conn=None):
     return rows
 
 # -----------------------------------------------------------------------------
+# Count Table Rows
+# -----------------------------------------------------------------------------
+
+# This returns as exact count (slow)
 
 def count_table_rows(table_name,conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     cur.execute("SELECT count(*) FROM " + table_name + ";")
+    rows = cur.fetchall()
+    return rows[0][0]
+
+#------------------------------------------------------------------------------
+
+# This retuns a close estimate (extremely fast):
+
+def estimate_table_rows(table,conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    query = "SELECT reltuples::bigint AS estimate FROM pg_class where relname=" + table + ";"
+    cur.execute(query)
     rows = cur.fetchall()
     return rows[0][0]
 
@@ -598,12 +614,12 @@ def find_wiki_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
 # Part 3: Status Operations
 #******************************************************************************
 
-def count_wiki_vertices(conn=None):
+def count_topics(conn=None):
     return count_table_rows('wiki_vertices', conn)
 
 #------------------------------------------------------------------------------
 
-def count_root_vertices(conn=None):
+def count_root_topics(conn=None):
     return count_table_rows('wiki_root_vertices', conn)
 
 #------------------------------------------------------------------------------
@@ -747,7 +763,6 @@ def generate_root_vertices():
 #------------------------------------------------------------------------------
 # Wiki DB Edge Table Maintenace
 #------------------------------------------------------------------------------
-
 
 def add_wiki_edge(source_name, target_name, edge_type=DEFAULT_EDGE_TYPE, conn=None, commit_p=False):
     conn = ensure_connection(conn)
@@ -936,6 +951,18 @@ def find_dictionary_definitions(definition, conn=None):
     cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
                 "WHERE LOWER(definition) LIKE LOWER('%" + definition + "%');")
     return cur.fetchall()
+
+#------------------------------------------------------------------------------
+# Find Defined Words
+#------------------------------------------------------------------------------
+
+def find_defined_words(conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                "WHERE definition IS NOT NULL;")
+    rows = cur.fetchall()
+    return rows if rows != [] else None
 
 #------------------------------------------------------------------------------
 # Find Undefine Words
@@ -1198,10 +1225,45 @@ def create_root_subtopics_tables(conn=None):
 # Root Subtopics Table Operations
 #------------------------------------------------------------------------------
 
-def find_root_subtopics(root_id, conn=None):
+def find_root_topic_by_name(topic_name):
+    conn = ensure_connection()
+    cur = conn.cursor()
+    query = "SELECT * FROM " + ROOT_VERTICES_TABLE  + \
+            " WHERE LOWER(name)=LOWER('" + topic_name + "');"
+    cur.execute(query)
+    rows = cur.fetchall()
+    if rows != []:
+        return rows[0]
+    else:
+        return None
+
+
+#------------------------------------------------------------------------------
+
+# Returns the subtopics of root_id from ROOT_SUBTOPICS_TABLE and joins
+# this with the VERTICES_TABLE thus providing details of each subtopic.
+
+def find_root_subtopics_by_id(root_id, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
+    query = "SELECT * from " + ROOT_SUBTOPICS_TABLE + " as sb "+ \
+            " JOIN " + VERTICES_TABLE + " as vt on vt.id = sb.subtopic_id " + \
+            " WHERE sb.root_id=" + str(root_id) + ";"
+    cur.execute(query)
+    rows = cur.fetchall()
+    return rows
 
+#------------------------------------------------------------------------------
+
+def find_root_subtopics_by_name(topic_name, conn=None):
+    topic = find_root_topic_by_name(topic_name)
+    if topic is not None:
+        root_id = topic[0]
+        rows = find_root_subtopics_by_id(root_id)
+        return rows
+    else:
+        return None
+    
 #------------------------------------------------------------------------------
 
 def count_root_subtopics(conn=None):
