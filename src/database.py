@@ -243,7 +243,8 @@ root_fields = "(id, name, weight, outdegree)"
 def add_root_vertex(row, conn=None, commit=False):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    query = "INSERT INTO " + ROOT_VERTICES_TABLE + " " + root_fields + " VALUES " + row_to_str(row) + ";"
+    query = "INSERT INTO " + ROOT_VERTICES_TABLE + " " + root_fields + \
+           " VALUES " + row_to_str(row) + ";"
     try:
         cur.execute(query)
         if commit == True:
@@ -676,25 +677,39 @@ def update_topics_degrees():
     cur = conn.cursor()
     rows = find_all_topics()
     count = 0
-    for row in rows:
-        id = row[0]
-        name = row[1]
-        if row[5] is None or row[5]==0:
-            indegree = compute_topic_indegree(name)
-            outdegree = compute_topic_outdegree(name)
-            subtopics = count_topic_subtopics(name)
-            weight = indegree + outdegree + subtopics
-            query = "UPDATE " + VERTICES_TABLE + " SET " + \
-                    "indegree = " + str(indegree) + ", " + \
-                    "outdegree = " + str(outdegree) + ", " + \
-                    "weight = " + str(weight) + " " + \
-                    "WHERE id=" + str(id) + ";"
-            cur.execute(query)
-            count += 1
-            if count%100==0:
-                print ('Topics updated: ' + str(count))
-            conn.commit()
-    return True
+    try:
+        for row in rows:
+            id = row[0]
+            name = row[1]
+            if row[5] is None or row[5]==0:
+                indegree = compute_topic_indegree(name)
+                outdegree = compute_topic_outdegree(name)
+                subtopics = count_topic_subtopics(name)
+                weight = indegree + outdegree + subtopics
+                query = "UPDATE " + VERTICES_TABLE + " SET " + \
+                        "indegree = " + str(indegree) + ", " + \
+                        "outdegree = " + str(outdegree) + ", " + \
+                        "weight = " + str(weight) + " " + \
+                        "WHERE id=" + str(id) + ";"
+                cur.execute(query)
+                count += 1
+                if count%100==0:
+                    print ('Topics updated: ' + str(count))
+                conn.commit()
+        conn.close()
+        return True
+    except Exception as err:
+        conn.close()
+        return False
+
+#------------------------------------------------------------------------------
+
+def count_processed_degrees():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    rows = find_all_topics()
+    x = list(filter(lambda row: row[5] is not None, rows))
+    return len(x)
 
 #******************************************************************************
 # Part 3: Status Operations
