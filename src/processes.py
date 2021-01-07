@@ -12,7 +12,7 @@ import src.clustering as cs
 #------------------------------------------------------------------------------
 
 def neighbor_worker (topic, tables, procnum, return_dict):
-    results = db.find_wiki_in_neighbors (topic, tables)
+    results = db._find_topic_in_neighbors (topic, tables)
     return_dict[procnum] = results
 
 #------------------------------------------------------------------------------
