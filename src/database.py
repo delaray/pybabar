@@ -672,6 +672,9 @@ def compute_topic_indegree(topic_name, source_id=None, conn=None):
 # Update Topic Indegree and Outdegree
 #------------------------------------------------------------------------------
 
+# This computes and stores the indegree, outdegree and weight of all
+# the topics in the VERTICES_TABLE.
+
 def update_topics_degrees():
     conn = ensure_connection()
     cur = conn.cursor()
@@ -693,7 +696,7 @@ def update_topics_degrees():
                         "WHERE id=" + str(id) + ";"
                 cur.execute(query)
                 count += 1
-                if count%100==0:
+                if count%200==0:
                     print ('Topics updated: ' + str(count))
                 conn.commit()
         conn.close()
