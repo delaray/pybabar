@@ -15,6 +15,7 @@ import pandas as pd
 
 # Project Imports
 from src.utils import make_data_pathname
+from src.scraper import get_url_response
 from src.scraper import get_url_data
 from src.database import find_undefined_words
 from src.database import update_word_definition
@@ -23,40 +24,77 @@ from src.database import update_word_definition
 # Part 1: MERRIAM WEBSTER SCRAPING
 #********************************************************************
 
+# Example URL:
+
+MW1 = 'https://www.merriam-webster.com/dictionary/facetious'
+
 #--------------------------------------------------------------------
 # Merriam Webster Scraper
 #--------------------------------------------------------------------
 
-#--------------------------------------------------------------------
-# Word Part Of Speech
+def get_word_url(word):
+    return 'https://www.merriam-webster.com/dictionary/' + word
+
 #--------------------------------------------------------------------
 
-# Returns the part of speech from the Merriam Webster responnse page.
+def ensure_response(word, response=None):
+    if response is None:
+        word_url = get_word_url(word)
+        response = get_url_response(word_url)
+    return response
+
+#--------------------------------------------------------------------
+# Base Word Part Of Speech
+#--------------------------------------------------------------------
+
+# Returns the part of speech from the Merriam Webster response page.
 
 def extract_pos (response):
     pos = []
     soup = BeautifulSoup(response.content, 'lxml')
     results =  soup.find_all('span')
-    print ('Span length: ' + str(len(results)))
+    # print ('Span length: ' + str(len(results)))
     for link in results:
         if link.get('class')==['fl']:
             pos.append(link)
     pos = pos[0].contents
-    return pos[0]
+    return pos[0].text
 
 #--------------------------------------------------------------------
 
-def get_word_pos(word):
-    word_url = 'https://www.merriam-webster.com/dictionary/' + word
-    response = get_url_response(word_url)
+def get_base_word_pos(word, response=None):
+    response = ensure_response(word, response)
     pos = extract_pos(response)
     return pos
+
+#--------------------------------------------------------------------
+# Base Word
+#--------------------------------------------------------------------
+
+def get_base_word(word, response=None):
+    response = ensure_response(word, response)
+    soup = BeautifulSoup(response.content, 'lxml')
+    results =  soup.find_all('h1', {'class' : "hword"})
+    if results != []:
+        base_word = results[0].text
+        base_pos = get_base_word_pos(word, response)
+        pos = base_pos
+        if base_word.lower() != word.lower():
+            results2 = soup.find_all('span')
+            for i in range(len(results2)):
+                entry = results2[i]
+                sclass = entry.attrs.get('class',[])
+                if sclass!=[] and sclass[0]=='ure' and entry.text.lower()==word.lower():
+                    pos = results2[i+1].text
+        return [base_word, base_pos, pos]
+    else:
+        return None
 
 #--------------------------------------------------------------------
 # Word Definition
 #--------------------------------------------------------------------
 
-word_def_class = ['dt', '']
+# Returns the first definition of word.
 
 def extract_definition(html):
     pos = []
@@ -77,13 +115,10 @@ def extract_definition(html):
 
 #--------------------------------------------------------------------
 
-# Example URL:
 
-MW1 = 'https://www.merriam-webster.com/dictionary/facetious'
-
-def get_word_definition(word):
-    word_url = 'https://www.merriam-webster.com/dictionary/' + word
-    html = get_url_data(word_url)
+def get_word_definition(word, response=None):
+    response = ensure_response(response)
+    html = response.content
     if html is not None:
         definition = extract_definition(html)
         return definition
@@ -109,6 +144,17 @@ def update_word_definitions():
             definition = definition.replace('"', '')
             update_word_definition(id, definition)
     return True
+
+
+#--------------------------------------------------------------------
+# Add word to lexicon
+#--------------------------------------------------------------------
+
+def add_word_to_lexicon(word):
+    word_url = get_word_url(word)
+    response = get_url_response(word_url)
+    pos = get_word_pos(word, response)
+    definition = get_word_definition(word, response)
 
 #********************************************************************
 # Part 2: Parts of Speech & Unknwon Words Lexicons

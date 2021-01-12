@@ -1061,13 +1061,14 @@ def count_dictionary_words(conn=None):
 
 #------------------------------------------------------------------------------
 
-def count_defined_words(conn=None):
+def count_word_definitons(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE + \
                         " WHERE definition IS NOT NULL;",
                         conn=conn)
     return result[0][0]
+
 #------------------------------------------------------------------------------
 # NIL Category Entries
 #------------------------------------------------------------------------------
