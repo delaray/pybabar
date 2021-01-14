@@ -29,7 +29,7 @@ from src.database import update_word_definition
 MW1 = 'https://www.merriam-webster.com/dictionary/facetious'
 
 #--------------------------------------------------------------------
-# Merriam Webster Scraper
+# Generic Utilities
 #--------------------------------------------------------------------
 
 def get_word_url(word):
@@ -42,6 +42,19 @@ def ensure_response(word, response=None):
         word_url = get_word_url(word)
         response = get_url_response(word_url)
     return response
+
+#--------------------------------------------------------------------
+# Parts Of Speech
+#--------------------------------------------------------------------
+
+PARTS_OF_SPEECH = ['noun',
+                   'verb',
+                   'adjective',
+                   'adverb',
+                   'preposition',
+                   'conjunction',
+                   'article',
+                   'pronoun']
 
 #--------------------------------------------------------------------
 # Base Word Part Of Speech
@@ -68,8 +81,34 @@ def get_base_word_pos(word, response=None):
     return pos
 
 #--------------------------------------------------------------------
+# Get Other Words
+#--------------------------------------------------------------------
+
+# Returns entries in the "Other Words from" section with their pos.
+
+def get_other_words(word, response=None):
+    response = ensure_response(word, response)
+    soup = BeautifulSoup(response.content, 'lxml')
+    results = {}
+    spans = soup.find_all('span')
+    for i in range(len(spans)):
+        entry = spans[i]
+        sclass = entry.attrs.get('class',[])
+        word2 = entry.text.lower()
+        if sclass!=[] and sclass[0]=='ure':
+            pos = spans[i+1].text
+            if pos in PARTS_OF_SPEECH:
+                results.update({word2 : pos })
+    return results
+    
+#--------------------------------------------------------------------
 # Base Word
 #--------------------------------------------------------------------
+
+# Returns the base word of <word>. In some cases it will be the
+# save, but for derived adjectives, adverbs or nouns it could
+# be different. It will also return the part of speech of the
+# base word as well the of speech of <word>.
 
 def get_base_word(word, response=None):
     response = ensure_response(word, response)
@@ -84,7 +123,8 @@ def get_base_word(word, response=None):
             for i in range(len(results2)):
                 entry = results2[i]
                 sclass = entry.attrs.get('class',[])
-                if sclass!=[] and sclass[0]=='ure' and entry.text.lower()==word.lower():
+                word2 = entry.text.lower()
+                if sclass!=[] and sclass=='[ure]' and word2==word.lower():
                     pos = results2[i+1].text
         return [base_word, base_pos, pos]
     else:
