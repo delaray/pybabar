@@ -65,9 +65,12 @@ PARTS_OF_SPEECH = ['noun',
 def get_base_word_pos (word, response):
     response = ensure_response(word, response)
     soup = BeautifulSoup(response.content, 'lxml')
+    # Primary Part of Speeach
+    results = soup.find_all('a', {'class' : "important-blue-link" })
+    primary = results[0].text
     entries = soup.find_all('span')
     entries = [x.text for x in entries if x.get('class')==['fl']]
-    return list(set(entries))
+    return primary, list(set(entries))
 
 #--------------------------------------------------------------------
 # Base Word
@@ -84,8 +87,8 @@ def get_base_word(word, response=None):
     results =  soup.find_all('h1', {'class' : "hword"})
     if results != []:
         base_word = results[0].text
-        base_pos = get_base_word_pos(word, response)
-        pos = base_pos
+        primary_pos, base_pos = get_base_word_pos(word, response)
+        pos = None
         if base_word.lower() != word.lower():
             print('\nWord: ' + word, ' Base Word: ' + base_word)
             results2 = soup.find_all('span')
@@ -93,13 +96,36 @@ def get_base_word(word, response=None):
                 entry = results2[i]
                 sclass = entry.attrs.get('class',[])
                 word2 = entry.text.lower()
-                print ('\nWord2: ' + word2 + ' ,Sclass: ' + str(sclass))
-                if sclass!=[] and sclass=='[ure]' and word2==word.lower():
+                if word2==word.lower() and results2[i+1].text in PARTS_OF_SPEECH:
                     pos = results2[i+1].text
-        return {base_word : base_pos,
-                word: pos}
+        if pos is None:
+            pos = primary_pos
+        return {word: pos, base_word : base_pos}
     else:
         return None
+    
+# def get_base_word(word, response=None):
+#     response = ensure_response(word, response)
+#     soup = BeautifulSoup(response.content, 'lxml')
+#     results =  soup.find_all('h1', {'class' : "hword"})
+#     if results != []:
+#         base_word = results[0].text
+#         base_pos = get_base_word_pos(word, response)
+#         pos = base_pos
+#         if base_word.lower() != word.lower():
+#             print('\nWord: ' + word, ' Base Word: ' + base_word)
+#             results2 = soup.find_all('span')
+#             for i in range(len(results2)):
+#                 entry = results2[i]
+#                 sclass = entry.attrs.get('class',[])
+#                 word2 = entry.text.lower()
+#                 print ('\nWord2: ' + word2 + ' ,Sclass: ' + str(sclass))
+#                 if sclass!=[] and sclass=='[ure]' and word2==word.lower():
+#                     pos = results2[i+1].text
+#         return {base_word : base_pos,
+#                 word: pos}
+#     else:
+#         return None
 
 #--------------------------------------------------------------------
 # Get Other Words
