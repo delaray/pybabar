@@ -62,23 +62,44 @@ PARTS_OF_SPEECH = ['noun',
 
 # Returns the part of speech from the Merriam Webster response page.
 
-def extract_pos (response):
-    pos = []
+def get_base_word_pos (word, response):
+    response = ensure_response(word, response)
     soup = BeautifulSoup(response.content, 'lxml')
-    results =  soup.find_all('span')
-    # print ('Span length: ' + str(len(results)))
-    for link in results:
-        if link.get('class')==['fl']:
-            pos.append(link)
-    pos = pos[0].contents
-    return pos[0].text
+    entries = soup.find_all('span')
+    entries = [x.text for x in entries if x.get('class')==['fl']]
+    return list(set(entries))
 
 #--------------------------------------------------------------------
+# Base Word
+#--------------------------------------------------------------------
 
-def get_base_word_pos(word, response=None):
+# Returns the base word of <word>. In some cases it will be the
+# save, but for derived adjectives, adverbs or nouns it could
+# be different. It will also return the part of speech of the
+# base word as well the of speech of <word>.
+
+def get_base_word(word, response=None):
     response = ensure_response(word, response)
-    pos = extract_pos(response)
-    return pos
+    soup = BeautifulSoup(response.content, 'lxml')
+    results =  soup.find_all('h1', {'class' : "hword"})
+    if results != []:
+        base_word = results[0].text
+        base_pos = get_base_word_pos(word, response)
+        pos = base_pos
+        if base_word.lower() != word.lower():
+            print('\nWord: ' + word, ' Base Word: ' + base_word)
+            results2 = soup.find_all('span')
+            for i in range(len(results2)):
+                entry = results2[i]
+                sclass = entry.attrs.get('class',[])
+                word2 = entry.text.lower()
+                print ('\nWord2: ' + word2 + ' ,Sclass: ' + str(sclass))
+                if sclass!=[] and sclass=='[ure]' and word2==word.lower():
+                    pos = results2[i+1].text
+        return {base_word : base_pos,
+                word: pos}
+    else:
+        return None
 
 #--------------------------------------------------------------------
 # Get Other Words
@@ -101,34 +122,6 @@ def get_other_words(word, response=None):
                 results.update({word2 : pos })
     return results
     
-#--------------------------------------------------------------------
-# Base Word
-#--------------------------------------------------------------------
-
-# Returns the base word of <word>. In some cases it will be the
-# save, but for derived adjectives, adverbs or nouns it could
-# be different. It will also return the part of speech of the
-# base word as well the of speech of <word>.
-
-def get_base_word(word, response=None):
-    response = ensure_response(word, response)
-    soup = BeautifulSoup(response.content, 'lxml')
-    results =  soup.find_all('h1', {'class' : "hword"})
-    if results != []:
-        base_word = results[0].text
-        base_pos = get_base_word_pos(word, response)
-        pos = base_pos
-        if base_word.lower() != word.lower():
-            results2 = soup.find_all('span')
-            for i in range(len(results2)):
-                entry = results2[i]
-                sclass = entry.attrs.get('class',[])
-                word2 = entry.text.lower()
-                if sclass!=[] and sclass=='[ure]' and word2==word.lower():
-                    pos = results2[i+1].text
-        return [base_word, base_pos, pos]
-    else:
-        return None
 
 #--------------------------------------------------------------------
 # Word Definition
