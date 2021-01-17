@@ -19,6 +19,7 @@ from src.scraper import get_url_response
 from src.scraper import get_url_data
 from src.database import find_undefined_words
 from src.database import update_word_definition
+from src.database import add_dictionary_word
 
 #********************************************************************
 # Part 1: MERRIAM WEBSTER SCRAPING
@@ -199,8 +200,14 @@ def add_word_to_lexicon(word):
     definition =  properties['definition']
     word_entry = [word, word_pos, base_word, definition]
     base_entry = [base_word, base_pos, base_word, definition]
-    return [word_entry, base_entry]
-
+    other_words = properties['other-words']
+    other_entries = list(map (lambda k: [k, other_words[k], base_word, definition],
+                              other_words.keys()))
+    entries = [word_entry, base_entry] + other_entries
+    for entry in entries:
+        print ('Entry: ' + str(entry))
+        add_dictionary_word(entry)
+    return True
     
 #--------------------------------------------------------------------
 # Database Operations

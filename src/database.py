@@ -735,7 +735,7 @@ def count_vertex_out_neighbors (vertex, conn=None):
 
 #------------------------------------------------------------------------------
 
-# Retturn a dictionaru of table_namme and edge_count.
+# Retturn a dictionary of table_namme and edge_count.
 
 def count_wiki_edges_by_table(conn=None):
     conn = ensure_connection(conn)
@@ -910,9 +910,9 @@ DICTIONARY_TABLE = 'dictionary'
 
 dictionary_str = "CREATE TABLE " + DICTIONARY_TABLE + \
                     "(id serial NOT NULL, " + \
-                      "word character varying, " + \
-                      "base character varying, " + \
-                      "pos character varying, " + \
+                      "word character varying (50) UNIQUE NOT NULL, " + \
+                      "base character varying (50), " + \
+                      "pos character varying (25) NOT NULL, " + \
                       "category character varying, " + \
                       "all_pos character varying, " + \
                       "definition character varying, " + \
@@ -1014,8 +1014,58 @@ def find_undefined_words(conn=None):
     return rows if rows != [] else None
 
 #------------------------------------------------------------------------------
-# Dictionary Table INSERT operation
+# Dictionary Table INSERT operations
 #------------------------------------------------------------------------------
+
+# Inserts a single dictionary words into DICTIONARY_TABLE if it does not
+# already exist.
+
+# word_entry: [<word> <pos> <base> <definition>]
+
+def add_dictionary_word(word_entry, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+
+    # Destructure and process
+    word, pos, base, definition = word_entry
+    if type(pos)==list:
+        if len(pos) > 1:
+            other_pos = pos[1]
+        else:
+            other_pos = pos[0]
+        pos = pos[0]
+    else:
+        other_pos = pos
+
+    print ('Other Pos: ' + other_pos)
+    # Insert or Update
+    if find_dictionary_word(word) is None:
+        query = "INSERT INTO " + DICTIONARY_TABLE +\
+                "(word, base, pos, category, all_pos, definition) " +\
+                "VALUES (%s, %s, %s, %s, %s, %s);"
+        data = [word, base, pos, pos, other_pos, definition]
+        cur.execute(query, data)
+    
+    else:
+        query = "UPDATE " + DICTIONARY_TABLE + " SET " +\
+                "pos='" + pos + "'," + \
+                "base='" + base + "', " + \
+                "all_pos='" + other_pos + "', " + \
+                "definition='" + definition + "' " + \
+                "WHERE word='" + word + "';"
+        cur.execute(query)
+        
+    # Insert the words 
+     
+    # Commit and close
+    conn.commit()
+    conn.close()
+        
+    return True
+
+#------------------------------------------------------------------------------
+
+# Inserts a df of dictionary words into DICTIONARY_TABLE
 
 def add_dictionary_words(df, conn=None):
     conn = ensure_connection(conn)
