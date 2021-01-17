@@ -68,8 +68,9 @@ def get_base_word_pos (word, response):
     # Primary Part of Speeach
     results = soup.find_all('a', {'class' : "important-blue-link" })
     primary = results[0].text
-    entries = soup.find_all('span')
-    entries = [x.text for x in entries if x.get('class')==['fl']]
+    entries = soup.find_all('div', {'class' : 'row entry-header'})
+    entries = [x.find_all('a', {'class' : "important-blue-link"}) for x in entries]
+    entries = [x[0].text for x in entries]
     return primary, list(set(entries))
 
 #--------------------------------------------------------------------
@@ -88,44 +89,30 @@ def get_base_word(word, response=None):
     if results != []:
         base_word = results[0].text
         primary_pos, base_pos = get_base_word_pos(word, response)
-        pos = None
-        if base_word.lower() != word.lower():
-            print('\nWord: ' + word, ' Base Word: ' + base_word)
-            results2 = soup.find_all('span')
-            for i in range(len(results2)):
-                entry = results2[i]
-                sclass = entry.attrs.get('class',[])
-                word2 = entry.text.lower()
-                if word2==word.lower() and results2[i+1].text in PARTS_OF_SPEECH:
-                    pos = results2[i+1].text
-        if pos is None:
-            pos = primary_pos
-        return {word: pos, base_word : base_pos}
+        return base_word, primary_pos, base_pos
     else:
-        return None
-    
-# def get_base_word(word, response=None):
-#     response = ensure_response(word, response)
-#     soup = BeautifulSoup(response.content, 'lxml')
-#     results =  soup.find_all('h1', {'class' : "hword"})
-#     if results != []:
-#         base_word = results[0].text
-#         base_pos = get_base_word_pos(word, response)
-#         pos = base_pos
-#         if base_word.lower() != word.lower():
-#             print('\nWord: ' + word, ' Base Word: ' + base_word)
-#             results2 = soup.find_all('span')
-#             for i in range(len(results2)):
-#                 entry = results2[i]
-#                 sclass = entry.attrs.get('class',[])
-#                 word2 = entry.text.lower()
-#                 print ('\nWord2: ' + word2 + ' ,Sclass: ' + str(sclass))
-#                 if sclass!=[] and sclass=='[ure]' and word2==word.lower():
-#                     pos = results2[i+1].text
-#         return {base_word : base_pos,
-#                 word: pos}
-#     else:
-#         return None
+        return None, None, None
+
+#--------------------------------------------------------------------
+
+def get_word_pos (word, response=None):
+    response = ensure_response(word, response)
+    soup = BeautifulSoup(response.content, 'lxml')
+    base_word, primary_pos, base_pos = get_base_word(word, response)
+    pos = None
+    if base_word is not None and word.lower() != base_word.lower():
+        print('\nWord: ' + word, ' Base Word: ' + base_word)
+        results2 = soup.find_all('span')
+        for i in range(len(results2)):
+            entry = results2[i]
+            sclass = entry.attrs.get('class',[])
+            word2 = entry.text.lower()
+            if word2==word.lower() and results2[i+1].text in PARTS_OF_SPEECH:
+                pos = results2[i+1].text
+    if pos is None:
+        pos = primary_pos
+    return {'word' : {word : pos},
+            'base-word' : {base_word : base_pos}}
 
 #--------------------------------------------------------------------
 # Get Other Words
@@ -146,9 +133,8 @@ def get_other_words(word, response=None):
             pos = spans[i+1].text
             if pos in PARTS_OF_SPEECH:
                 results.update({word2 : pos })
-    return results
+    return {'other-words' : results}
     
-
 #--------------------------------------------------------------------
 # Word Definition
 #--------------------------------------------------------------------
@@ -184,6 +170,19 @@ def get_word_definition(word, response=None):
     else:
         return None
 
+#--------------------------------------------------------------------
+# Get Word Properties
+#--------------------------------------------------------------------
+
+def get_word_properties (word, response=None):
+    response = ensure_response(word, response)
+    words = get_word_pos (word, response)
+    other_words = get_other_words (word, response)
+    words.update(other_words)
+    return words
+
+#--------------------------------------------------------------------
+# Database Operations
 #--------------------------------------------------------------------
 
 # This scrapes Merriam Webster deinitions.
