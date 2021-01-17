@@ -162,7 +162,7 @@ def extract_definition(html):
 
 
 def get_word_definition(word, response=None):
-    response = ensure_response(response)
+    response = ensure_response(word, response)
     html = response.content
     if html is not None:
         definition = extract_definition(html)
@@ -179,8 +179,29 @@ def get_word_properties (word, response=None):
     words = get_word_pos (word, response)
     other_words = get_other_words (word, response)
     words.update(other_words)
+    definition = get_word_definition(word, response)
+    words.update({'definition' : definition})
     return words
 
+#--------------------------------------------------------------------
+# Add word to lexicon
+#--------------------------------------------------------------------
+
+# Return a list of rows of the form:
+
+# [<word> <pos> <base> <definition>]
+
+def add_word_to_lexicon(word):
+    properties = get_word_properties(word)
+    word_pos = properties['word'][word]
+    base_word = list(properties['base-word'].keys())[0]
+    base_pos = list(properties['base-word'].values())[0]
+    definition =  properties['definition']
+    word_entry = [word, word_pos, base_word, definition]
+    base_entry = [base_word, base_pos, base_word, definition]
+    return [word_entry, base_entry]
+
+    
 #--------------------------------------------------------------------
 # Database Operations
 #--------------------------------------------------------------------
@@ -203,16 +224,6 @@ def update_word_definitions():
             update_word_definition(id, definition)
     return True
 
-
-#--------------------------------------------------------------------
-# Add word to lexicon
-#--------------------------------------------------------------------
-
-def add_word_to_lexicon(word):
-    word_url = get_word_url(word)
-    response = get_url_response(word_url)
-    pos = get_word_pos(word, response)
-    definition = get_word_definition(word, response)
 
 #********************************************************************
 # Part 2: Parts of Speech & Unknwon Words Lexicons
