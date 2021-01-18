@@ -15,14 +15,27 @@
 # Part 9: Miscellaneous Operations
 #
 #*****************************************************************************
-#
 # DUMPING AND RESTORING THE DATABASE
+#-----------------------------------------------------------------------------
+
+# Dump PG Database
+# pg_dump -U postgres wikidb > wikidb.sql
+
+#------------------------------------------------------------------------------
 #
-# pg_dump -h localhost -p 5432 -U postgres -F c -b -v -f "wikidb.dump" wikidb
+# Restore PG Database
+# sudo -u postgres psql
 #
-# NB: Delete and recreate the wikidb before doing a restore.
+# First need to create the database
+# CREATE DATABASE wikidb
 #
-# pg_restore -h localhost -p 5432 -U postgres -d wikidb -v "wikidb.dump"
+# Now restore the dumpled sql file
+#
+# 1. In PSQL 
+# \i /home/pierre/wikidb.sql
+#
+# 2. At the command line
+# pg_restore -U postgres -d wikidb.sql
 #
 #*****************************************************************************
 
@@ -685,23 +698,27 @@ def update_topics_degrees():
             id = row[0]
             name = row[1]
             if row[5] is None or row[5]==0:
-                indegree = compute_topic_indegree(name)
-                outdegree = compute_topic_outdegree(name)
-                subtopics = count_topic_subtopics(name)
-                weight = indegree + outdegree + subtopics
-                query = "UPDATE " + VERTICES_TABLE + " SET " + \
+                try:
+                    indegree = compute_topic_indegree(name)
+                    outdegree = compute_topic_outdegree(name)
+                    subtopics = count_topic_subtopics(name)
+                    weight = indegree + outdegree + subtopics
+                    query = "UPDATE " + VERTICES_TABLE + " SET " + \
                         "indegree = " + str(indegree) + ", " + \
                         "outdegree = " + str(outdegree) + ", " + \
                         "weight = " + str(weight) + " " + \
                         "WHERE id=" + str(id) + ";"
-                cur.execute(query)
-                count += 1
-                if count%200==0:
-                    print ('Topics updated: ' + str(count))
-                conn.commit()
+                    cur.execute(query)
+                    count += 1
+                    if count%200==0:
+                        print ('Topics updated: ' + str(count))
+                    conn.commit()
+                except Exception as err:
+                    print ("Error: " + str(err))
         conn.close()
         return True
     except Exception as err:
+        print ("Error: " + str(err))
         conn.close()
         return False
 
