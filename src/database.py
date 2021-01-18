@@ -147,7 +147,7 @@ def split_list (a, n):
 #------------------------------------------------------------------------------
 
 VERTICES_TABLE = 'wiki_vertices'
-ROOT_VERTICES_TABLE='wiki_root_vertices'
+ROOT_VERTICES_TABLE='root_topics'
 edge_table_prefix = 'wiki_edges_'
 
 #------------------------------------------------------------------------------
