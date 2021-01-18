@@ -64,7 +64,7 @@ import src.processes as pr
 # TODO: Move connection parameters into environment variables.
 
 def wikidb_connect():
-    conn = psycopg2.connect("dbname='wikidb' user='postgres' password='postgres' host='localhost'")
+    conn = psycopg2.connect("dbname='wikidb' user='postgres' password='Terrapin1' host='localhost'")
     return conn
 
 #------------------------------------------------------------------------------
