@@ -174,7 +174,7 @@ def get_other_words(word, response=None):
 def extract_definition(html):
     pos = []
     classes = []
-    soup = BeautifulSoup(html)
+    soup = BeautifulSoup(html, 'lxml')
     results =  soup.find_all('meta', {'name' : "description"})
     if len(results) > 0:
         x = results[0].attrs['content']
