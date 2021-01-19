@@ -275,7 +275,7 @@ def find_new_words_from_topic(topic):
     count = 0
     for tokens in token_lists:
         for token in tokens:
-            if find_dictionary_word(token) is None:
+            if find_dictionary_word(token) is None and "'" not in token:
                 success = add_word_to_lexicon(token)
                 if success==True:
                     count +=1
