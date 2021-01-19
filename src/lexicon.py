@@ -3,7 +3,8 @@
 #
 # Part 1: Merriam Webster Scraping
 # Part 2: Parts of Speech & Unknwon Words Lexicons
-# Part 3 : Updating Dictionary Word Definitions
+# Part 3: Updating Dictionary Word Definitions
+# Part 4: Finding new words.
 #
 #********************************************************************
 
@@ -17,9 +18,11 @@ import pandas as pd
 from src.utils import make_data_pathname
 from src.scraper import get_url_response
 from src.scraper import get_url_data
+from src.database import find_dictionary_word
 from src.database import find_undefined_words
 from src.database import update_word_definition
 from src.database import add_dictionary_word
+from src.wikipedia import scan_wikipedia_topic
 
 #********************************************************************
 # Part 1: MERRIAM WEBSTER SCRAPING
@@ -49,13 +52,24 @@ def ensure_response(word, response=None):
 #--------------------------------------------------------------------
 
 PARTS_OF_SPEECH = ['noun',
+                   'plural noun',
+                   'noun (1)',
+                   'noun (2)',
                    'verb',
+                   'auxiliary verb',
                    'adjective',
                    'adverb',
                    'preposition',
                    'conjunction',
-                   'article',
-                   'pronoun']
+                   'definite article',
+                   'indefinite article',
+                   'pronoun',
+                   'combining form',
+                   'abbreviation',
+                   'abbreviation (1)',
+                   'abbreviation (2)',
+                   'prefix',
+                   'suffix']
 
 #--------------------------------------------------------------------
 # Base Word Part Of Speech
@@ -63,16 +77,22 @@ PARTS_OF_SPEECH = ['noun',
 
 # Returns the part of speech from the Merriam Webster response page.
 
-def get_base_word_pos (word, response):
+def get_base_word_pos (word, response=None):
     response = ensure_response(word, response)
     soup = BeautifulSoup(response.content, 'lxml')
     # Primary Part of Speeach
     results = soup.find_all('a', {'class' : "important-blue-link" })
-    primary = results[0].text
-    entries = soup.find_all('div', {'class' : 'row entry-header'})
-    entries = [x.find_all('a', {'class' : "important-blue-link"}) for x in entries]
-    entries = [x[0].text for x in entries]
-    return primary, list(set(entries))
+    if results != []:
+        primary = results[0].text
+        entries = soup.find_all('div', {'class' : 'row entry-header'})
+        entries = [x.find_all('a', {'class' : "important-blue-link"}) for x in entries]
+        if entries != []:
+            entries = [x[0].text for x in entries if len(x) > 0]
+            return primary, list(set(entries))
+        else:
+            return primary, []
+    else:
+        return None, None
 
 #--------------------------------------------------------------------
 # Base Word
@@ -101,19 +121,25 @@ def get_word_pos (word, response=None):
     soup = BeautifulSoup(response.content, 'lxml')
     base_word, primary_pos, base_pos = get_base_word(word, response)
     pos = None
-    if base_word is not None and word.lower() != base_word.lower():
-        print('\nWord: ' + word, ' Base Word: ' + base_word)
-        results2 = soup.find_all('span')
-        for i in range(len(results2)):
-            entry = results2[i]
-            sclass = entry.attrs.get('class',[])
-            word2 = entry.text.lower()
-            if word2==word.lower() and results2[i+1].text in PARTS_OF_SPEECH:
-                pos = results2[i+1].text
-    if pos is None:
-        pos = primary_pos
-    return {'word' : {word : pos},
-            'base-word' : {base_word : base_pos}}
+    if base_word is not None:
+        if word.lower() != base_word.lower():
+            print('\nWord: ' + word, ' Base Word: ' + base_word)
+            results2 = soup.find_all('span')
+            for i in range(len(results2)):
+                entry = results2[i]
+                sclass = entry.attrs.get('class',[])
+                word2 = entry.text.lower()
+                if word2==word.lower() and results2[i+1].text in PARTS_OF_SPEECH:
+                    pos = results2[i+1].text
+        if pos is None:
+            pos = primary_pos
+        if pos is not None:
+            return {'word' : {word : pos},
+                    'base-word' : {base_word : base_pos}}
+        else:
+            return None
+    else:
+        return None
 
 #--------------------------------------------------------------------
 # Get Other Words
@@ -161,12 +187,13 @@ def extract_definition(html):
 
 #--------------------------------------------------------------------
 
-
 def get_word_definition(word, response=None):
     response = ensure_response(word, response)
     html = response.content
     if html is not None:
         definition = extract_definition(html)
+        definition = definition.replace("'", "")
+        definition = definition.replace("\`", "")
         return definition
     else:
         return None
@@ -178,37 +205,43 @@ def get_word_definition(word, response=None):
 def get_word_properties (word, response=None):
     response = ensure_response(word, response)
     words = get_word_pos (word, response)
-    other_words = get_other_words (word, response)
-    words.update(other_words)
-    definition = get_word_definition(word, response)
-    words.update({'definition' : definition})
-    return words
+    if words is not None:
+        other_words = get_other_words (word, response)
+        words.update(other_words)
+        definition = get_word_definition(word, response)
+        words.update({'definition' : definition})
+        return words
+    else:
+        return None
 
 #--------------------------------------------------------------------
 # Add word to lexicon
 #--------------------------------------------------------------------
 
-# Return a list of rows of the form:
+# Adds word and all derived words to the database.
+# Returns True or False.
 
 # [<word> <pos> <base> <definition>]
 
 def add_word_to_lexicon(word):
     properties = get_word_properties(word)
-    word_pos = properties['word'][word]
-    base_word = list(properties['base-word'].keys())[0]
-    base_pos = list(properties['base-word'].values())[0]
-    definition =  properties['definition']
-    word_entry = [word, word_pos, base_word, definition]
-    base_entry = [base_word, base_pos, base_word, definition]
-    other_words = properties['other-words']
-    other_entries = list(map (lambda k: [k, other_words[k], base_word, definition],
-                              other_words.keys()))
-    entries = [word_entry, base_entry] + other_entries
-    for entry in entries:
-        print ('Entry: ' + str(entry))
-        add_dictionary_word(entry)
-    return True
-    
+    if properties is not None:
+        word_pos = properties['word'][word]
+        base_word = list(properties['base-word'].keys())[0]
+        base_pos = list(properties['base-word'].values())[0]
+        definition =  properties['definition']
+        word_entry = [word, word_pos, base_word, definition]
+        base_entry = [base_word, base_pos, base_word, definition]
+        other_words = properties['other-words']
+        other_entries = list(map (lambda k: [k, other_words[k], base_word, definition],
+                                  other_words.keys()))
+        entries = [word_entry, base_entry] + other_entries
+        for entry in entries:
+            add_dictionary_word(entry)
+        return True
+    else:
+        return False
+
 #--------------------------------------------------------------------
 # Database Operations
 #--------------------------------------------------------------------
@@ -231,10 +264,30 @@ def update_word_definitions():
             update_word_definition(id, definition)
     return True
 
+#********************************************************************
+# Part 3: Finding new words.
+#********************************************************************
+
+def find_new_words_from_topic(topic):
+    token_lists = scan_wikipedia_topic(topic)
+    toekn_lists = [token_lists[0]]
+    unknown_words = []
+    count = 0
+    for tokens in token_lists:
+        for token in tokens:
+            if find_dictionary_word(token) is None:
+                success = add_word_to_lexicon(token)
+                if success==True:
+                    count +=1
+                else:
+                    unknown_words.append(token)
+    return unknown_words, count
 
 #********************************************************************
-# Part 2: Parts of Speech & Unknwon Words Lexicons
+# Part 4: Parts of Speech & Unknwon Words Lexicons
 #********************************************************************
+
+# Bootstapping the dictionary from Common Lisp Data Files from 2012.
 
 #--------------------------------------------------------------------
 # Load Parts of Speech
