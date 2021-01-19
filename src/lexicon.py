@@ -18,6 +18,7 @@ import pandas as pd
 from src.utils import make_data_pathname
 from src.scraper import get_url_response
 from src.scraper import get_url_data
+from src.database import find_topic
 from src.database import find_topic_out_neighbors
 from src.database import find_edges
 from src.database import find_dictionary_word
