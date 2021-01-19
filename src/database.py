@@ -57,14 +57,29 @@ import src.processes as pr
 # Part 0: DB Connection and generic functions
 #******************************************************************************
 
+LHOST = 'localhost'
+RHOST = '35.189.76.240'
+
 #------------------------------------------------------------------------------
 # DB Connection
 #------------------------------------------------------------------------------
 
 # TODO: Move connection parameters into environment variables.
 
+# First try to connect to remote host, otherwise connect to localhost.
+
+# def wikidb_connect():
+#     try:
+#         conn = psycopg2.connect("dbname='wikidb' user='postgres'" + \
+#                                 " password='Terrapin1' host='" + RHOST + "'")
+#     except Exception:
+#         conn = psycopg2.connect("dbname='wikidb' user='postgres'" + \
+#                                 " password='Terrapin1' host='" + LHOST + "'")
+#     return conn
+
 def wikidb_connect():
-    conn = psycopg2.connect("dbname='wikidb' user='postgres' password='Terrapin1' host='localhost'")
+    conn = psycopg2.connect("dbname='wikidb' user='postgres'" + \
+                            " password='Terrapin1' host='" + LHOST + "'")
     return conn
 
 #------------------------------------------------------------------------------
@@ -967,10 +982,13 @@ def create_dictionary_tables(conn=None):
 def find_dictionary_word(word, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
-                "WHERE LOWER(word)=LOWER('" + word + "');")
-    rows = cur.fetchall()
-    return rows[0] if rows != [] else None
+    try: 
+        cur.execute("SELECT * FROM " + DICTIONARY_TABLE + " " + \
+                    "WHERE LOWER(word)=LOWER('" + word + "');")
+        rows = cur.fetchall()
+        return rows[0] if rows != [] else None
+    except Exception:
+        return None
 
 #------------------------------------------------------------------------------
 # Find Dictionary Word
@@ -1054,7 +1072,7 @@ def add_dictionary_word(word_entry, conn=None):
     else:
         other_pos = pos
 
-    print ('Other Pos: ' + other_pos)
+    # print ('Other Pos: ' + other_pos)
     # Insert or Update
     if find_dictionary_word(word) is None:
         query = "INSERT INTO " + DICTIONARY_TABLE +\
@@ -1179,7 +1197,7 @@ def update_nil_category_entries():
 
 UNKNOWN_WORDS_TABLE = 'dictionary_unknown'
 
-# NB: The priimary key will be a vertex id from the vertex table.
+# NB: The primary key will be a vertex id from the vertex table.
 
 UNKNOWN_WORDS_STR = "CREATE TABLE " + UNKNOWN_WORDS_TABLE + \
                     "(id serial NOT NULL, " + \
@@ -1226,13 +1244,41 @@ def find_unknown_word(word, conn=None):
 # Unknown Words Table INSERT operation
 #------------------------------------------------------------------------------
 
+def add_unknown_word(word, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+
+    if find_unknown_word(word) is None:
+        try:
+            # Insert string
+            insert_str = "INSERT INTO " + UNKNOWN_WORDS_TABLE +\
+                " (word, status) " +\
+                "VALUES ('" + word + "', 'unknown');"
+
+            print ("Insert str: " + insert_str)
+            # Insert the words 
+            cur.execute(insert_str)
+     
+            # Commit and close
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as err:
+            print ('Error: ' + str(err))
+            return False
+    return False
+
+#------------------------------------------------------------------------------
+# Unknown Words Table INSERT operation
+#------------------------------------------------------------------------------
+
 def add_unknown_words(df, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     
     # Inset string
     insert_str = "INSERT INTO " + UNKNOWN_WORDS_TABLE +\
-                 "(word, status) " +\
+                 " (word, status) " +\
                  "VALUES (%s, %s);"
 
     # Insert the words 

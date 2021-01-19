@@ -18,6 +18,8 @@ import pandas as pd
 from src.utils import make_data_pathname
 from src.scraper import get_url_response
 from src.scraper import get_url_data
+from src.database import find_topic_out_neighbors
+from src.database import find_edges
 from src.database import find_dictionary_word
 from src.database import find_undefined_words
 from src.database import update_word_definition
@@ -271,21 +273,58 @@ def update_word_definitions():
 # Retrieves the paragraphs of a wikipedia topic and scans them into
 # adding those words and their derived words into the dictionary.
 
-def find_new_words_from_topic(topic):
+def find_new_words_from_topic(topic, count=0):
     token_lists = scan_wikipedia_topic(topic)
-    toekn_lists = [token_lists[0]]
+    #token_lists = [token_lists[0]]
     unknown_words = []
-    count = 0
     for tokens in token_lists:
         for token in tokens:
             if find_dictionary_word(token) is None and "'" not in token:
-                if token not in unknown_words:
-                    success = add_word_to_lexicon(token)
-                    if success==True:
-                        count +=1
-                    else:
-                        unknown_words.append(token)
+                # print ('Word: ' + str(token))
+                try:
+                    if token not in unknown_words:
+                        success = add_word_to_lexicon(token)
+                        if success==True:
+                            count +=1
+                        else:
+                            unknown_words.append(token)
+                except Exception as err:
+                    print ("Error warning: " + str(err))
     return unknown_words, count
+
+#--------------------------------------------------------------------
+# Find New Words from Topics
+#--------------------------------------------------------------------
+
+def find_new_words_from_topics(topics, count=0):
+    for topic in topics:
+        if find_topic(topic) is not None:
+            uw, count=find_new_words_from_topic(topic, count)
+            if count%100==0:
+                print ('New words: ' + str(count))
+    return uw, count
+
+#--------------------------------------------------------------------
+# Find New Words
+#--------------------------------------------------------------------
+
+TOPICS = ['Art', 'Literature', 'Science', 'History', 'Geography',
+          'Economics', 'Business', 'Entertainments', 'News',
+          'Medecine', 'Technology']
+
+#--------------------------------------------------------------------
+
+def find_new_words(topics=TOPICS):
+    unknown = []
+    count = 0
+    for topic in topics:
+        if find_topic(topic) is not None:
+            candidates = find_topic_out_neighbors(topic)
+            candidates = [topic] + candidates
+            uw, count= find_new_words_from_topics(candidates, count)
+            unknown += uw
+    return uw, count
+                
 
 #********************************************************************
 # Part 4: Parts of Speech & Unknwon Words Lexicons
