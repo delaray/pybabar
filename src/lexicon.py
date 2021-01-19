@@ -268,6 +268,9 @@ def update_word_definitions():
 # Part 3: Finding new words.
 #********************************************************************
 
+# Retrieves the paragraphs of a wikipedia topic and scans them into
+# adding those words and their derived words into the dictionary.
+
 def find_new_words_from_topic(topic):
     token_lists = scan_wikipedia_topic(topic)
     toekn_lists = [token_lists[0]]
@@ -276,11 +279,12 @@ def find_new_words_from_topic(topic):
     for tokens in token_lists:
         for token in tokens:
             if find_dictionary_word(token) is None and "'" not in token:
-                success = add_word_to_lexicon(token)
-                if success==True:
-                    count +=1
-                else:
-                    unknown_words.append(token)
+                if token not in unknown_words:
+                    success = add_word_to_lexicon(token)
+                    if success==True:
+                        count +=1
+                    else:
+                        unknown_words.append(token)
     return unknown_words, count
 
 #********************************************************************
