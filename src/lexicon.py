@@ -126,7 +126,7 @@ def get_word_pos (word, response=None):
     pos = None
     if base_word is not None:
         if word.lower() != base_word.lower():
-            print('\nWord: ' + word, ' Base Word: ' + base_word)
+            # print('Word: ' + word, ' Base Word: ' + base_word)
             results2 = soup.find_all('span')
             for i in range(len(results2)):
                 entry = results2[i]
@@ -276,42 +276,55 @@ def update_word_definitions():
 
 def find_new_words_from_topic(topic, count=0):
     token_lists = scan_wikipedia_topic(topic)
-    #token_lists = [token_lists[0]]
-    unknown_words = []
-    for tokens in token_lists:
-        for token in tokens:
-            if find_dictionary_word(token) is None and "'" not in token:
-                # print ('Word: ' + str(token))
-                try:
-                    if token not in unknown_words:
-                        success = add_word_to_lexicon(token)
-                        if success==True:
-                            count +=1
-                        else:
-                            unknown_words.append(token)
-                except Exception as err:
-                    print ("Error warning: " + str(err))
-    return unknown_words, count
+    if token_lists is not None:
+        unknown_words = []
+        for tokens in token_lists:
+            for token in tokens:
+                if find_dictionary_word(token) is None and "'" not in token:
+                    # print ('Word: ' + str(token))
+                    try:
+                        if token not in unknown_words:
+                            success = add_word_to_lexicon(token)
+                            if success==True:
+                                count +=1
+                            else:
+                                unknown_words.append(token)
+                    except Exception as err:
+                        print ("Error warning: " + str(err))
+        return unknown_words, count
+    else:
+        return None, count
 
 #--------------------------------------------------------------------
 # Find New Words from Topics
 #--------------------------------------------------------------------
 
 def find_new_words_from_topics(topics, count=0):
+    unknown = []
     for topic in topics:
         if find_topic(topic) is not None:
             uw, count=find_new_words_from_topic(topic, count)
-            if count%100==0:
-                print ('New words: ' + str(count))
-    return uw, count
+            if uw is not NOne:
+                unknown.append(uw)
+                if count%100==0:
+                    print ('New words: ' + str(count))
+    return unknown, count
 
 #--------------------------------------------------------------------
 # Find New Words
 #--------------------------------------------------------------------
 
-TOPICS = ['Art', 'Literature', 'Science', 'History', 'Geography',
-          'Economics', 'Business', 'Entertainments', 'News',
-          'Medecine', 'Technology']
+TOPICS = ['Medecine',
+          'Technology',
+          'News',
+          'Entertainments',
+          'Business',
+          'Economics',
+          'Geography',
+          'History',
+          'Science',
+          'Literature',
+          'Art']
 
 #--------------------------------------------------------------------
 

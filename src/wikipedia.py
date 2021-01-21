@@ -76,13 +76,15 @@ def get_wikipedia_all_paragraphs (topic, response=None):
 def scan_wikipedia_topic(topic, response=None):
     response = ensure_response(topic, response)
     paragraphs = get_wikipedia_all_paragraphs (topic, response)
-    results = []
-    for p in paragraphs:
-        tokens = tokenize_text(p)
-        tokens = filter(lambda x: len(x) > 1, tokens)
-        tokens = [x for x in tokens if not any(y.isdigit() for y in x)]
-        results.append(list(tokens))
-    return results
+    if paragraphs is not None:
+        results = []
+        for p in paragraphs:
+            tokens = tokenize_text(p)
+            tokens = filter(lambda x: len(x) > 1, tokens)
+            tokens = [x for x in tokens if not any(y.isdigit() for y in x)]
+            results.append(list(tokens))
+        return results
+    return None
    
 #--------------------------------------------------------------------
 # End of File
