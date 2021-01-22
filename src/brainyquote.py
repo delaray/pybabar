@@ -42,18 +42,20 @@ def ensure_response(topic, url=None, response=None):
 
 #--------------------------------------------------------------------
 
-def get_topic_quotes(topic, response=None, limit=50):
+# Returns a dictionary of quotes and authors keyed by quotes.
+
+def get_authors_and_quotes (topic, limit=50):
+
+    # Initialize
     count = 0
+    results = {}
     url = get_brainyquote_url(topic, count)
     response = ensure_response(topic, url=url)
-    
-    # Use a dictionary to ensure unique quotes.
-    results = {}
-    print ('Processing quotes for topic: ' + topic)
 
     # Iterate over all BrainyQuote pages.
     while response is not None and count < limit:
         print ('Processing page ' + str(count+1) + "...")
+
         soup = BeautifulSoup(response.content, 'lxml')
         divs = soup.find_all('div', {'class' : 'clearfix'})
         for entry in divs:
@@ -69,6 +71,17 @@ def get_topic_quotes(topic, response=None, limit=50):
         count += 1
         url = get_brainyquote_url(topic, count)
         response = ensure_response(topic, url=url)
+    return results
+
+#--------------------------------------------------------------------
+
+def get_topic_quotes(topic, response=None, limit=50):
+    # Use a dictionary to ensure unique quotes.
+    results = {}
+    print ('Processing quotes for topic: ' + topic)
+
+    # Scape the data
+    results =get_authors_and_quotes(topic, limit=limit)
         
     # Now place results in a DF
     rows = []
@@ -80,7 +93,20 @@ def get_topic_quotes(topic, response=None, limit=50):
     cols = ['author', 'quote', 'topic', 'source', 'source_url', 'created_on']
     # Return the dataframe.
     return pd.DataFrame(rows, columns=cols)
+
+#--------------------------------------------------------------------
+
+def get_topics_quotes(topics, response=None, limit=50):
     
+    dfs = []
+
+    # Scrape the specified topics
+    for topic in topics:
+        df = get_topic_quotes(topic, limit=limit)
+        dfs.append(df)
+
+    # Return concatenated dataframes.
+    return pd.concat(dfs, axis=0)
 
 #--------------------------------------------------------------------
 # Soup select examples
