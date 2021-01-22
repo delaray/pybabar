@@ -14,6 +14,13 @@ from src.utils import make_data_pathname
 from src.utils import tokenize_text
 from src.scraper import get_url_response
 from src.scraper import get_url_data
+from src.database import add_topic_quotes_1
+
+
+
+TOPICS_INDEX_URL = 'https://www.brainyquote.com/topics'
+
+# <a href="/topic_index/ab">Abandon - Abyss</a>
 
 #--------------------------------------------------------------------
 # Basic Tools
@@ -40,6 +47,65 @@ def ensure_response(topic, url=None, response=None):
     else:
         return response
 
+ 
+#--------------------------------------------------------------------
+# Brainy Quote Topics
+#--------------------------------------------------------------------
+   
+def get_bq_topic_links():
+    response = get_url_response(TOPICS_INDEX_URL)
+    soup = BeautifulSoup(response.content, 'lxml')
+    atags = soup.find_all('a', href=True)
+    results = []
+    for atag in atags:
+        x = atag['href']
+        if "/topic_index/" in x:
+            results.append('https://www.brainyquote.com' + x)
+    return results
+
+#--------------------------------------------------------------------
+
+# Topics to skip:
+
+SKIP_TOPICS =['Wisdom', 'Funny', 'Friendship', 'Motivational',
+              'Inspirational', 'Positive', 'Life', 'Love',
+              'Wisdom', 'Funny', 'Friendship']
+
+#--------------------------------------------------------------------
+
+def contains_skip_topic (topic):
+    status = False
+    for x in SKIP_TOPICS:
+        if x in topic:
+            status = True
+    return status
+
+#--------------------------------------------------------------------
+
+def get_bq_topics (url):
+    response = get_url_response(url)
+    soup = BeautifulSoup(response.content, 'lxml')
+    atags = soup.find_all('a', href=True)
+    results = []
+    for atag in atags:
+        x = atag['href']
+        if "/topics/" in x:
+            topic = atag.text.replace('\n', '')
+            results.append(topic)
+    return results[:-16]
+
+#--------------------------------------------------------------------
+
+def get_all_bq_topics():
+    urls = get_bq_topic_links()
+    all_topics = []
+    for url in urls:
+        topics = get_bq_topics(url)
+        all_topics += topics
+    return all_topics
+    
+#--------------------------------------------------------------------
+# Scraping Quotes
 #--------------------------------------------------------------------
 
 # Returns a dictionary of quotes and authors keyed by quotes.
@@ -47,17 +113,19 @@ def ensure_response(topic, url=None, response=None):
 def get_authors_and_quotes (topic, limit=50):
 
     # Initialize
-    count = 0
+    page = 0
     results = {}
-    url = get_brainyquote_url(topic, count)
+    url = get_brainyquote_url(topic, page)
     response = ensure_response(topic, url=url)
 
     # Iterate over all BrainyQuote pages.
-    while response is not None and count < limit:
-        print ('Processing page ' + str(count+1) + "...")
+    while response is not None and page < limit:
+        print ('Processing page ' + str(page+1) + "...")
 
         soup = BeautifulSoup(response.content, 'lxml')
         divs = soup.find_all('div', {'class' : 'clearfix'})
+
+        # Parse the div entries
         for entry in divs:
             atags = entry.find_all('a')
             if len(atags)==2:
@@ -68,20 +136,22 @@ def get_authors_and_quotes (topic, limit=50):
                 q = atags[1].text
                 a = atags[2].text
                 results.update({q : a})
-        count += 1
-        url = get_brainyquote_url(topic, count)
+        page += 1
+        
+        # Update url and response.
+        url = get_brainyquote_url(topic, page)
         response = ensure_response(topic, url=url)
+        
     return results
 
 #--------------------------------------------------------------------
 
 def get_topic_quotes(topic, response=None, limit=50):
-    # Use a dictionary to ensure unique quotes.
-    results = {}
+
     print ('Processing quotes for topic: ' + topic)
 
     # Scape the data
-    results =get_authors_and_quotes(topic, limit=limit)
+    results = get_authors_and_quotes(topic, limit=limit)
         
     # Now place results in a DF
     rows = []
@@ -91,22 +161,38 @@ def get_topic_quotes(topic, response=None, limit=50):
         row = [value, key, topic, source, url, datetime.now()]
         rows.append(row)
     cols = ['author', 'quote', 'topic', 'source', 'source_url', 'created_on']
+    
     # Return the dataframe.
     return pd.DataFrame(rows, columns=cols)
 
 #--------------------------------------------------------------------
 
 def get_topics_quotes(topics, response=None, limit=50):
-    
-    dfs = []
-
     # Scrape the specified topics
+    dfs = []
     for topic in topics:
         df = get_topic_quotes(topic, limit=limit)
         dfs.append(df)
-
+    rdf = pd.concat(dfs, axis=0)
     # Return concatenated dataframes.
-    return pd.concat(dfs, axis=0)
+    return rdf
+
+#--------------------------------------------------------------------
+# FIND NEW QUOTES
+#--------------------------------------------------------------------
+
+def populate_quotes_table (topics_lists, limit=20, max_topics=100):
+    topics = get_all_bq_topics()
+    count = 0
+    while len(topics) > max_topics:
+        next_topics = topics[:max_topics]
+        df = get_topics_quotes(next_topics, limit=limit)
+        add_topic_quotes_1(df)
+        print ('Quotes processed: ' + str(df.shape[0]))
+        topics = topics[100:]
+        count += max_topics
+        print ('Topics processed: ' + str(count))
+    return True
 
 #--------------------------------------------------------------------
 # Soup select examples

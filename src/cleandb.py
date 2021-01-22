@@ -72,6 +72,31 @@ def delete_bogus_vertices(conn=None):
         delete_bogus_vertex(vertex_row[1], conn=conn)
     return True
 
+#*****************************************************************************
+# Part 10: Miscellaneous Operations
+#*****************************************************************************
+
+#------------------------------------------------------------------------------
+# Typed Root Vertices
+#------------------------------------------------------------------------------
+
+def count_typed_root_vertices():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    result = run_query ("SELECT count(*) from " + ROOT_VERTICES_TABLE + \
+                        " WHERE type IS NOT NULL;",
+                        conn=conn)
+    return result[0][0]
+
+#------------------------------------------------------------------------------
+# Miscellneous Output Functions.
+#------------------------------------------------------------------------------
+
+def print_raw(text, separator):
+    text = text + separator
+    textbytes = unquote(text).encode("utf-8")
+    sys.stdout.buffer.write(textbytes)
+
 #------------------------------------------------------------------------------
 # End of File
 #-----------------------------------------------------------------------------

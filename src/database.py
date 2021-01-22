@@ -1530,14 +1530,41 @@ def create_quotes_tables(conn=None):
     create_quotes_indexes(conn)
     
 #------------------------------------------------------------------------------
-# Add Quotes
+# Add Topic Quotes
 #------------------------------------------------------------------------------
 
-# DF is a datfrome with columns:
-#
+# DF is a datframe with columns:
 # author, quote, topic, source, source_url, timestamp
 
-def add_topic_quotes(df, conn=None):
+def add_topic_quotes_1(df, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    
+    # Inset string
+    insert_str = "INSERT INTO " + QUOTES_TABLE +\
+                 " (author, quote, topic, source, source_url, created_on) " +\
+                 "VALUES (%s, %s, %s, %s, %s, %s);"
+
+    # Insert the quotes
+    for index, row in df.iterrows():
+        data = list(row)
+        try:
+            cur.execute(insert_str, data)
+            conn.commit()
+        except Exception as err:
+            conn.close()
+            conn = ensure_connection()
+            cur = conn.cursor()
+     
+    # Commit and close
+    conn.close()
+        
+#------------------------------------------------------------------------------
+
+# DF is a datframe with columns:
+# author, quote, topic, source, source_url, timestamp
+
+def add_topic_quotes_2(df, conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     
@@ -1556,31 +1583,6 @@ def add_topic_quotes(df, conn=None):
         
     return True
 
-
-#*****************************************************************************
-# Part 10: Miscellaneous Operations
-#*****************************************************************************
-
-#------------------------------------------------------------------------------
-# Typed Root Vertices
-#------------------------------------------------------------------------------
-
-def count_typed_root_vertices():
-    conn = ensure_connection()
-    cur = conn.cursor()
-    result = run_query ("SELECT count(*) from " + ROOT_VERTICES_TABLE + \
-                        " WHERE type IS NOT NULL;",
-                        conn=conn)
-    return result[0][0]
-
-#------------------------------------------------------------------------------
-# Miscellneous Output Functions.
-#------------------------------------------------------------------------------
-
-def print_raw(text, separator):
-    text = text + separator
-    textbytes = unquote(text).encode("utf-8")
-    sys.stdout.buffer.write(textbytes)
 
 #------------------------------------------------------------------------------
 # End of File
