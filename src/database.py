@@ -9,10 +9,9 @@
 # Part 4: Maintenance Operations
 # Part 5: Deletion operations
 # Part 6: Vertex and Edge Types
-# Part 7: Lexicon Tables
-# Part 8: Root Subtopics Tables
-# Part 9: Bogus Vertices
-# Part 9: Miscellaneous Operations
+# Part 7: Root Subtopics Tables
+# Part 8: Lexicon Tables
+# Part 9: Quotes Tables
 #
 #*****************************************************************************
 # DUMPING AND RESTORING THE DATABASE
@@ -929,7 +928,190 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
     conn.commit()
 
 #*****************************************************************************
-# Part 5: Lexicon Tables
+# Part 6: Vertex and Edge Types
+#*****************************************************************************
+
+def update_root_vertex_types():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    
+    # Get the Untypedrot vertices
+    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " WHERE type IS NULL;")
+    rows = cur.fetchall()
+    print ('\nTotal root vertices: ' + str(count_root_vertices()))
+    print ('Untyped root vertices: ' + str(len(rows)) + '\n')
+
+    # Update those vertices that have a category in the dictionary.
+    count = 0
+    for row in rows:
+        word_entry = find_dictionary_word(row[1])
+        if word_entry is not None:
+            id = word_entry[0]
+            word_type = word_entry[4]
+            if type != '' or type=='NIL':
+                query = "UPDATE " + ROOT_VERTICES_TABLE + " SET type='" + word_type + \
+                        "' WHERE id=" + str(id) + ";"
+                cur.execute(query)
+                conn.commit()
+                count += 1
+                if count%10==0:
+                    print ("Root vertices updated: " + str(count))
+    return True
+
+
+
+#*****************************************************************************
+# Part 8: Root Subtopics Table
+#*****************************************************************************
+
+#------------------------------------------------------------------------------
+# Root Subtopics Table Creation
+#------------------------------------------------------------------------------
+
+ROOT_SUBTOPICS_TABLE = 'root_subtopics'
+
+# NB: The priimary key will be a vertex id from the vertex table.
+
+ROOT_SUBTOPICS_STR = "CREATE TABLE " + ROOT_SUBTOPICS_TABLE + \
+                    "(id serial NOT NULL, " + \
+                    "root_id integer NOT NULL, " + \
+                    "subtopic_id integer NOT NULL, " + \
+                    "weight integer DEFAULT 0, " + \
+                    "CONSTRAINT root_subtopics_id PRIMARY KEY (id));"
+
+#------------------------------------------------------------------------------
+
+def create_root_subtopics_table(conn=None):
+    cur = conn.cursor()
+    print ("Creating Root Subtopics Table...")
+    cur.execute("DROP TABLE IF EXISTS " + ROOT_SUBTOPICS_TABLE + ";")
+    cur.execute(ROOT_SUBTOPICS_STR)
+    conn.commit()
+
+#------------------------------------------------------------------------------
+
+def create_root_subtopics_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((root_id));")
+    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((subtopic_id));")
+    conn.commit()
+
+#------------------------------------------------------------------------------
+    
+def create_root_subtopics_tables(conn=None):
+    conn = ensure_connection(conn)
+    create_root_subtopics_table(conn)
+    create_root_subtopics_indexes(conn)
+
+#------------------------------------------------------------------------------
+# Find Root SubTopics
+#------------------------------------------------------------------------------
+
+# Returns the subtopics of root_id from ROOT_SUBTOPICS_TABLE and joins
+# this with the VERTICES_TABLE thus providing details of each subtopic.
+
+def find_root_subtopics_by_id(root_id, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    query = "SELECT * from " + ROOT_SUBTOPICS_TABLE + " as sb "+ \
+            " JOIN " + VERTICES_TABLE + " as vt on vt.id = sb.subtopic_id " + \
+            " WHERE sb.root_id=" + str(root_id) + ";"
+    cur.execute(query)
+    rows = cur.fetchall()
+    return rows
+
+#------------------------------------------------------------------------------
+
+def find_root_subtopics_by_name(topic_name, conn=None):
+    topic = find_root_topic_by_name(topic_name)
+    if topic is not None:
+        root_id = topic[0]
+        rows = find_root_subtopics_by_id(root_id)
+        return rows
+    else:
+        return None
+    
+#------------------------------------------------------------------------------
+
+def count_root_subtopics(conn=None):
+    return count_table_rows(ROOT_SUBTOPICS_TABLE, conn=conn)
+
+#------------------------------------------------------------------------------
+
+def count_topic_subtopics(topic_name):
+    topic = find_root_topic(topic_name)
+    if topic is not None:
+        return len(find_root_subtopics_by_id(topic[0]))
+    else:
+        return 0
+    
+#------------------------------------------------------------------------------
+# Insert Root Subtopics
+#------------------------------------------------------------------------------
+
+# Inserts potential subtopics of each root vertex.
+
+def insert_root_subtopics():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    root_topics = get_root_vertices(conn=conn)
+    count = 0
+    for root_topic in root_topics:
+        root_id = root_topic[0]
+        vertex_name = root_topic[1]
+        query ="SELECT * FROM " + ROOT_SUBTOPICS_TABLE + \
+               " WHERE root_id=" + str(root_id) + ";"
+        cur.execute(query)
+        processed = cur.fetchall()
+        # Only process if unprocessed
+        if processed == []:
+            # Get all potential_subtopics
+            query = "SELECT * FROM " + VERTICES_TABLE + \
+                    " WHERE lower(name) LIKE LOWER('%" + vertex_name + "%');"
+            cur.execute(query)
+            subtopics = cur.fetchall()
+            # print ("Root topic: " + vertex_name + ", Subtopics: " + str(len(subtopics)))
+            for subtopic in subtopics:
+                if len(subtopic) > 1:
+                    subtopic_tokens = list(map (lambda x: x.lower(),
+                                                subtopic[1].split('_')))
+                    if vertex_name.lower() in subtopic_tokens:
+                        query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
+                                " (root_id, subtopic_id) " + \
+                                " VALUES (%s, %s);"
+                        execute_query(query, data=(root_id, subtopic[0]), conn=conn)
+            conn.commit()
+            count += 1
+            if count%100==0:
+                x = count_root_subtopics()
+                print ("Root topics processed: " + str(count))
+                print ("Total subtopics added: " + str(x))
+                print ("-------------------------------------------------")
+    conn.close()
+    return True
+
+#------------------------------------------------------------------------------
+
+def count_unprocessed_subtopics():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    root_topics = get_root_vertices(conn=conn)
+    count = 0
+    for root_topic in root_topics:
+        root_id = root_topic[0]
+        vertex_name = root_topic[1]
+        query ="SELECT * FROM " + ROOT_SUBTOPICS_TABLE + \
+               " WHERE root_id=" + str(root_id) + ";"
+        cur.execute(query)
+        processed = cur.fetchall()
+        # Only process if unprocessed
+        if processed == []:
+            count += 1
+    return count
+
+
+#*****************************************************************************
+# Part 8: Lexicon Tables
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
@@ -1296,268 +1478,58 @@ def add_unknown_words(df, conn=None):
 def count_unknown_words(conn=None):
     return count_table_rows(UNKNOWN_WORDS_TABLE, conn=conn)
 
-#*****************************************************************************
-# Part 6: Vertex and Edge Types
-#*****************************************************************************
-
-def update_root_vertex_types():
-    conn = ensure_connection()
-    cur = conn.cursor()
-    
-    # Get the Untypedrot vertices
-    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " WHERE type IS NULL;")
-    rows = cur.fetchall()
-    print ('\nTotal root vertices: ' + str(count_root_vertices()))
-    print ('Untyped root vertices: ' + str(len(rows)) + '\n')
-
-    # Update those vertices that have a category in the dictionary.
-    count = 0
-    for row in rows:
-        word_entry = find_dictionary_word(row[1])
-        if word_entry is not None:
-            id = word_entry[0]
-            word_type = word_entry[4]
-            if type != '' or type=='NIL':
-                query = "UPDATE " + ROOT_VERTICES_TABLE + " SET type='" + word_type + \
-                        "' WHERE id=" + str(id) + ";"
-                cur.execute(query)
-                conn.commit()
-                count += 1
-                if count%10==0:
-                    print ("Root vertices updated: " + str(count))
-    return True
-
-
 
 #*****************************************************************************
-# Part 8: Root Subtopics Table
+# Part 9: Lexicon Tables
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
-# Root Subtopics Table Creation
+# Dictionary Table Creation
 #------------------------------------------------------------------------------
 
-ROOT_SUBTOPICS_TABLE = 'root_subtopics'
+QUOTES_TABLE = 'famous_quotes'
 
 # NB: The priimary key will be a vertex id from the vertex table.
 
-ROOT_SUBTOPICS_STR = "CREATE TABLE " + ROOT_SUBTOPICS_TABLE + \
+quotes_str = "CREATE TABLE " + QUOTES_TABLE + \
                     "(id serial NOT NULL, " + \
-                    "root_id integer NOT NULL, " + \
-                    "subtopic_id integer NOT NULL, " + \
-                    "weight integer DEFAULT 0, " + \
-                    "CONSTRAINT root_subtopics_id PRIMARY KEY (id));"
+                      "author character varying (50) NOT NULL, " + \
+                      "quote character varying (500) UNIQUE, " + \
+                      "source_url character varying (100), " + \
+                      "category character varying (20), " + \
+                      "created_on timestamp " + \
+                      "CONSTRAINT quotes_id PRIMARY KEY (id));"
 
 #------------------------------------------------------------------------------
 
-def create_root_subtopics_table(conn=None):
+def create_quotes_table(conn):
     cur = conn.cursor()
-    print ("Creating Root Subtopics Table...")
-    cur.execute("DROP TABLE IF EXISTS " + ROOT_SUBTOPICS_TABLE + ";")
-    cur.execute(ROOT_SUBTOPICS_STR)
+    print ("Creating Quotes Table...")
+    cur.execute("DROP TABLE IF EXISTS " + QUOTES_TABLE + ";")
+    cur.execute(quotes_str)
     conn.commit()
 
 #------------------------------------------------------------------------------
 
-def create_root_subtopics_indexes(conn):
+def create_quotes_indexes(conn):
     cur = conn.cursor()
-    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((root_id));")
-    cur.execute("CREATE INDEX ON " + ROOT_SUBTOPICS_TABLE + " ((subtopic_id));")
+    cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(author)));")
+    cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(quote)));")
+    cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(category)));")
     conn.commit()
 
 #------------------------------------------------------------------------------
     
-def create_root_subtopics_tables(conn=None):
+def create_quotes_tables(conn=None):
     conn = ensure_connection(conn)
-    create_root_subtopics_table(conn)
-    create_root_subtopics_indexes(conn)
-
-#------------------------------------------------------------------------------
-# Find Root SubTopics
-#------------------------------------------------------------------------------
-
-# Returns the subtopics of root_id from ROOT_SUBTOPICS_TABLE and joins
-# this with the VERTICES_TABLE thus providing details of each subtopic.
-
-def find_root_subtopics_by_id(root_id, conn=None):
-    conn = ensure_connection(conn)
-    cur = conn.cursor()
-    query = "SELECT * from " + ROOT_SUBTOPICS_TABLE + " as sb "+ \
-            " JOIN " + VERTICES_TABLE + " as vt on vt.id = sb.subtopic_id " + \
-            " WHERE sb.root_id=" + str(root_id) + ";"
-    cur.execute(query)
-    rows = cur.fetchall()
-    return rows
-
-#------------------------------------------------------------------------------
-
-def find_root_subtopics_by_name(topic_name, conn=None):
-    topic = find_root_topic_by_name(topic_name)
-    if topic is not None:
-        root_id = topic[0]
-        rows = find_root_subtopics_by_id(root_id)
-        return rows
-    else:
-        return None
-    
-#------------------------------------------------------------------------------
-
-def count_root_subtopics(conn=None):
-    return count_table_rows(ROOT_SUBTOPICS_TABLE, conn=conn)
-
-#------------------------------------------------------------------------------
-
-def count_topic_subtopics(topic_name):
-    topic = find_root_topic(topic_name)
-    if topic is not None:
-        return len(find_root_subtopics_by_id(topic[0]))
-    else:
-        return 0
-    
-#------------------------------------------------------------------------------
-# Insert Root Subtopics
-#------------------------------------------------------------------------------
-
-# Inserts potential subtopics of each root vertex.
-
-def insert_root_subtopics():
-    conn = ensure_connection()
-    cur = conn.cursor()
-    root_topics = get_root_vertices(conn=conn)
-    count = 0
-    for root_topic in root_topics:
-        root_id = root_topic[0]
-        vertex_name = root_topic[1]
-        query ="SELECT * FROM " + ROOT_SUBTOPICS_TABLE + \
-               " WHERE root_id=" + str(root_id) + ";"
-        cur.execute(query)
-        processed = cur.fetchall()
-        # Only process if unprocessed
-        if processed == []:
-            # Get all potential_subtopics
-            query = "SELECT * FROM " + VERTICES_TABLE + \
-                    " WHERE lower(name) LIKE LOWER('%" + vertex_name + "%');"
-            cur.execute(query)
-            subtopics = cur.fetchall()
-            # print ("Root topic: " + vertex_name + ", Subtopics: " + str(len(subtopics)))
-            for subtopic in subtopics:
-                if len(subtopic) > 1:
-                    subtopic_tokens = list(map (lambda x: x.lower(),
-                                                subtopic[1].split('_')))
-                    if vertex_name.lower() in subtopic_tokens:
-                        query = "INSERT INTO " + ROOT_SUBTOPICS_TABLE + \
-                                " (root_id, subtopic_id) " + \
-                                " VALUES (%s, %s);"
-                        execute_query(query, data=(root_id, subtopic[0]), conn=conn)
-            conn.commit()
-            count += 1
-            if count%100==0:
-                x = count_root_subtopics()
-                print ("Root topics processed: " + str(count))
-                print ("Total subtopics added: " + str(x))
-                print ("-------------------------------------------------")
-    conn.close()
-    return True
-
-#------------------------------------------------------------------------------
-
-def count_unprocessed_subtopics():
-    conn = ensure_connection()
-    cur = conn.cursor()
-    root_topics = get_root_vertices(conn=conn)
-    count = 0
-    for root_topic in root_topics:
-        root_id = root_topic[0]
-        vertex_name = root_topic[1]
-        query ="SELECT * FROM " + ROOT_SUBTOPICS_TABLE + \
-               " WHERE root_id=" + str(root_id) + ";"
-        cur.execute(query)
-        processed = cur.fetchall()
-        # Only process if unprocessed
-        if processed == []:
-            count += 1
-    return count
-
-
-#*****************************************************************************
-# Part 9: # BOGUS VERTICES
-#*****************************************************************************
-
-# Finds Topics that contain the hashtag charcter '#'.
-
-def find_bogus_vertices (conn=None):
-    conn = ensure_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM " + VERTICES_TABLE +  \
-                " WHERE name like '%\#%'")
-    rows = cur.fetchall()
-    return rows
-
-#------------------------------------------------------------------------------
-
-# Deletes topics and corresponding edges that contain the hashtag charcter '#'.
-
-def delete_bogus_vertex(vertex_name, conn=None):
-    conn = ensure_connection()
-    cur = conn.cursor()
-
-    # Gather the vertex and edges
-    vertex_row = find_topic(vertex_name, conn)
-    vertex_id = vertex_row[0] if vertex_row is not None else None
-    if vertex_id==None:
-        return False
-
-    in_neighbors = find_topic_in_neighbors(vertex_name, conn=conn)
-    out_neighbors = find_topic_out_neighbors(vertex_name, conn=conn)
-
-    if len(out_neighbors) < 5 and len(in_neighbors) < 5:
-        # Delete the vertex first
-        cur.execute("DELETE FROM " + VERTICES_TABLE  + " as wv " + \
-                    " WHERE wv.id=" + str(vertex_id) + ";")
-        conn.commit()
-
-        # Delete outbound edges
-        outbound_edge_table = edge_table_name(vertex_name[0])
-        cur.execute("DELETE FROM " + outbound_edge_table  + " as oe " + \
-                    " WHERE source=" + str(vertex_id) + ";")
-        conn.commit()
-
-        # Delete inbound edges
-        for source_name in in_neighbors:
-            inbound_edge_table = edge_table_name(source_name[0])
-            source_row = find_topic(source_name, conn)
-            source_id = source_row[0] if source_row is not None else None
-            if source_id != None:
-                cur.execute("DELETE FROM " + inbound_edge_table  + " as ie " + \
-                            " WHERE ie.source=" + str(source_id) + \
-                            " AND ie. target=" + str(vertex_id) + ";")
-        conn.commit()
-        print ("Deleted 1 vertex, " + str(len(out_neighbors)) + " outbound edges and " + \
-               str(len(in_neighbors)) + " inbound edges.")
-    # Wrap up
-    conn.close()
-    return True
-
-#------------------------------------------------------------------------------
-
-def delete_bogus_vertices(conn=None):
-    conn = ensure_connection()
-    bogus_vertices = find_bogus_vertices(conn)
-    count = 0
-    print ("Found " + str(len(bogus_vertices)) + " bogus vertices.")
-    for vertex_row in bogus_vertices:
-        count += 1
-        if count%100==0:
-            print ("Deleted " + str(count) + " bogus vertices...")
-        delete_bogus_vertex(vertex_row[1], conn=conn)
-    return True
+    create_quotes_table(conn)
+    create_quotes_indexes(conn)
 
 #*****************************************************************************
 # Part 10: Miscellaneous Operations
 #*****************************************************************************
 
-
-
+#------------------------------------------------------------------------------
 # Typed Root Vertices
 #------------------------------------------------------------------------------
 
