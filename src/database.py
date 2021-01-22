@@ -44,6 +44,7 @@ import psycopg2
 import string
 import pprint
 import pandas as pd
+from datetime import datetime
 from  urllib.parse import unquote
 
 from functools import reduce
@@ -1480,7 +1481,7 @@ def count_unknown_words(conn=None):
 
 
 #*****************************************************************************
-# Part 9: Lexicon Tables
+# Part 9: Quote Table
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
@@ -1492,13 +1493,15 @@ QUOTES_TABLE = 'famous_quotes'
 # NB: The priimary key will be a vertex id from the vertex table.
 
 quotes_str = "CREATE TABLE " + QUOTES_TABLE + \
-                    "(id serial NOT NULL, " + \
-                      "author character varying (50) NOT NULL, " + \
-                      "quote character varying (500) UNIQUE, " + \
-                      "source_url character varying (100), " + \
-                      "category character varying (20), " + \
-                      "created_on timestamp " + \
-                      "CONSTRAINT quotes_id PRIMARY KEY (id));"
+    "(id serial NOT NULL, " + \
+    "author character varying (50) NOT NULL, " + \
+    "quote character varying (500) UNIQUE, " + \
+    "topic character varying (50) NOT NULL, " + \
+    "source character varying (50) NOT NULL, " + \
+    "source_url character varying (200), " + \
+    "category character varying (20), " + \
+    "created_on timestamp, " + \
+    "CONSTRAINT quotes_id PRIMARY KEY (id));"
 
 #------------------------------------------------------------------------------
 
@@ -1515,6 +1518,7 @@ def create_quotes_indexes(conn):
     cur = conn.cursor()
     cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(author)));")
     cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(quote)));")
+    cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(topic)));")
     cur.execute("CREATE INDEX ON " + QUOTES_TABLE + " ((lower(category)));")
     conn.commit()
 
@@ -1524,6 +1528,34 @@ def create_quotes_tables(conn=None):
     conn = ensure_connection(conn)
     create_quotes_table(conn)
     create_quotes_indexes(conn)
+    
+#------------------------------------------------------------------------------
+# Add Quotes
+#------------------------------------------------------------------------------
+
+# DF is a datfrome with columns:
+#
+# author, quote, topic, source, source_url, timestamp
+
+def add_topic_quotes(df, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    
+    # Inset string
+    insert_str = "INSERT INTO " + QUOTES_TABLE +\
+                 " (author, quote, topic, source, source_url, created_on) " +\
+                 "VALUES (%s, %s, %s, %s, %s, %s);"
+
+    # Insert the words 
+    data_list = [list(row) for row in df.itertuples(index=False)]
+    cur.executemany(insert_str, data_list)
+     
+    # Commit and close
+    conn.commit()
+    conn.close()
+        
+    return True
+
 
 #*****************************************************************************
 # Part 10: Miscellaneous Operations
