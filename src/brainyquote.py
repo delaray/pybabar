@@ -181,7 +181,7 @@ def get_topics_quotes(topics, response=None, limit=50):
 # FIND NEW QUOTES
 #--------------------------------------------------------------------
 
-def populate_quotes_table (topics_lists, limit=20, max_topics=100):
+def populate_quotes_table (limit=20, max_topics=100):
     topics = get_all_bq_topics()
     count = 0
     while len(topics) > max_topics:
