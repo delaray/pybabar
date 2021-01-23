@@ -304,7 +304,7 @@ def find_new_words_from_topics(topics, count=0):
     for topic in topics:
         if find_topic(topic) is not None:
             uw, count=find_new_words_from_topic(topic, count)
-            if uw is not NOne:
+            if uw is not None:
                 unknown.append(uw)
                 if count%100==0:
                     print ('New words: ' + str(count))
