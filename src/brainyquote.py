@@ -3,11 +3,18 @@
 #********************************************************************************
 
 
+#--------------------------------------------------------------------
+# Imports
+#--------------------------------------------------------------------
+
 # Python imports
 import os
+import time
 from datetime import datetime
 from bs4 import BeautifulSoup, SoupStrainer
 import pandas as pd
+
+#--------------------------------------------------------------------
 
 # Project imports
 from src.utils import make_data_pathname
@@ -17,10 +24,29 @@ from src.scraper import get_url_data
 from src.database import add_topic_quotes_1
 
 
+#--------------------------------------------------------------------
 
 TOPICS_INDEX_URL = 'https://www.brainyquote.com/topics'
 
-# <a href="/topic_index/ab">Abandon - Abyss</a>
+#--------------------------------------------------------------------
+# Topic Lists
+#--------------------------------------------------------------------
+
+TOPICS1 = ['love', 'life', 'death', 'existence', 'logic']
+
+TOPICS2 = ['nature', 'tree', 'trees', 'plant', 'plants',
+           'flower', 'flowers', 'garden', 'gardens']
+
+TOPICS3 = ['joy', 'happiness', 'bliss', 'serenity', 'peace']
+
+TOPICS4 = ['anger', 'hatred', 'sorrow', 'solitude', 'loneliness']
+
+TOPICS5 = ['art', 'painting', 'poetry', 'music', 'dancing',
+           'singing', 'writing', 'acting', 'opera', 'ballet', 'concert']
+
+TOPICS6 = ['philosophy', 'intelligence', 'consciousness', 'dream', 'dreams']
+
+TOPICS_LISTS = [TOPICS1, TOPICS2, TOPICS3, TOPICS4, TOPICS5, TOPICS6]
 
 #--------------------------------------------------------------------
 # Basic Tools
@@ -172,6 +198,7 @@ def get_topics_quotes(topics, response=None, limit=50):
     dfs = []
     for topic in topics:
         df = get_topic_quotes(topic, limit=limit)
+        time.sleep(5)
         dfs.append(df)
     rdf = pd.concat(dfs, axis=0)
     # Return concatenated dataframes.
@@ -181,7 +208,7 @@ def get_topics_quotes(topics, response=None, limit=50):
 # FIND NEW QUOTES
 #--------------------------------------------------------------------
 
-def populate_quotes_table (limit=20, max_topics=100):
+def populate_quotes_table (limit=20, max_topics=5):
     topics = get_all_bq_topics()
     count = 0
     while len(topics) > max_topics:
@@ -192,6 +219,7 @@ def populate_quotes_table (limit=20, max_topics=100):
         topics = topics[100:]
         count += max_topics
         print ('Topics processed: ' + str(count))
+        time.sleep(10)
     return True
 
 #--------------------------------------------------------------------
@@ -204,3 +232,4 @@ def populate_quotes_table (limit=20, max_topics=100):
 #--------------------------------------------------------------------
 # End of File
 #--------------------------------------------------------------------
+
