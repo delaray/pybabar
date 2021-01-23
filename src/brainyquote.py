@@ -28,6 +28,8 @@ from src.database import add_topic_quotes_1
 
 TOPICS_INDEX_URL = 'https://www.brainyquote.com/topics'
 
+PAGE_LIMIT = 20
+
 #--------------------------------------------------------------------
 # Topic Lists
 #--------------------------------------------------------------------
@@ -124,6 +126,7 @@ def get_bq_topics (url):
 
 def get_all_bq_topics():
     urls = get_bq_topic_links()
+    time.sleep(5)
     all_topics = []
     for url in urls:
         topics = get_bq_topics(url)
@@ -136,13 +139,14 @@ def get_all_bq_topics():
 
 # Returns a dictionary of quotes and authors keyed by quotes.
 
-def get_authors_and_quotes (topic, limit=50):
+def get_authors_and_quotes (topic, limit=PAGE_LIMIT):
 
     # Initialize
     page = 0
     results = {}
     url = get_brainyquote_url(topic, page)
     response = ensure_response(topic, url=url)
+    time.sleep(5)
 
     # Iterate over all BrainyQuote pages.
     while response is not None and page < limit:
@@ -167,6 +171,7 @@ def get_authors_and_quotes (topic, limit=50):
         # Update url and response.
         url = get_brainyquote_url(topic, page)
         response = ensure_response(topic, url=url)
+        time.sleep(5)
         
     return results
 
@@ -193,7 +198,7 @@ def get_topic_quotes(topic, response=None, limit=50):
 
 #--------------------------------------------------------------------
 
-def get_topics_quotes(topics, response=None, limit=50):
+def get_topics_quotes(topics, response=None, limit=PAGE_LIMIT):
     # Scrape the specified topics
     dfs = []
     for topic in topics:
@@ -208,7 +213,7 @@ def get_topics_quotes(topics, response=None, limit=50):
 # FIND NEW QUOTES
 #--------------------------------------------------------------------
 
-def populate_quotes_table (limit=20, max_topics=5):
+def populate_quotes_table (limit=PAGE_LIMIT, max_topics=5):
     topics = get_all_bq_topics()
     count = 0
     while len(topics) > max_topics:
