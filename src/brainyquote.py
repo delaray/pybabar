@@ -28,7 +28,7 @@ from src.database import add_topic_quotes_1
 
 TOPICS_INDEX_URL = 'https://www.brainyquote.com/topics'
 
-PAGE_LIMIT = 20
+PAGE_LIMIT = 10
 
 #--------------------------------------------------------------------
 # Topic Lists
