@@ -28,7 +28,7 @@ from src.database import add_topic_quotes_1
 
 TOPICS_INDEX_URL = 'https://www.brainyquote.com/topics'
 
-PAGE_LIMIT = 20
+PAGE_LIMIT = 10
 
 #--------------------------------------------------------------------
 # Topic Lists
@@ -151,7 +151,7 @@ def get_authors_and_quotes (topic, limit=PAGE_LIMIT):
 
     # Iterate over all BrainyQuote pages.
     while response is not None and page < limit:
-        print ('Processing page ' + str(page+1) + "...")
+        # print ('Processing page ' + str(page+1) + "...")
 
         soup = BeautifulSoup(response.content, 'lxml')
         divs = soup.find_all('div', {'class' : 'clearfix'})
@@ -172,7 +172,7 @@ def get_authors_and_quotes (topic, limit=PAGE_LIMIT):
         # Update url and response.
         url = get_brainyquote_url(topic, page)
         response = ensure_response(topic, url=url)
-        time.sleep(10)
+        time.sleep(5)
         
     return results
 
@@ -204,7 +204,7 @@ def get_topics_quotes(topics, response=None, limit=PAGE_LIMIT):
     dfs = []
     for topic in topics:
         df = get_topic_quotes(topic, limit=limit)
-        time.sleep(10)
+        time.sleep(5)
 
         dfs.append(df)
     rdf = pd.concat(dfs, axis=0)
@@ -222,7 +222,7 @@ def populate_quotes_table (limit=PAGE_LIMIT, max_topics=10):
         next_topics = topics[:max_topics]
         df = get_topics_quotes(next_topics, limit=limit)
         add_topic_quotes_1(df)
-        print ('Quotes processed: ' + str(df.shape[0]))
+        print ('Adding Quotes to DB: ' + str(df.shape[0]))
         topics = topics[max_topics:]
         count += max_topics
         print ('Topics processed: ' + str(count))
