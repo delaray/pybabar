@@ -126,11 +126,12 @@ def get_bq_topics (url):
 
 def get_all_bq_topics():
     urls = get_bq_topic_links()
-    time.sleep(5)
+    time.sleep(10)
     all_topics = []
     for url in urls:
         topics = get_bq_topics(url)
         all_topics += topics
+        time.sleep(5)
     return all_topics
     
 #--------------------------------------------------------------------
@@ -150,7 +151,7 @@ def get_authors_and_quotes (topic, limit=PAGE_LIMIT):
 
     # Iterate over all BrainyQuote pages.
     while response is not None and page < limit:
-        print ('Processing page ' + str(page+1) + "...")
+        # print ('Processing page ' + str(page+1) + "...")
 
         soup = BeautifulSoup(response.content, 'lxml')
         divs = soup.find_all('div', {'class' : 'clearfix'})
@@ -204,6 +205,7 @@ def get_topics_quotes(topics, response=None, limit=PAGE_LIMIT):
     for topic in topics:
         df = get_topic_quotes(topic, limit=limit)
         time.sleep(5)
+
         dfs.append(df)
     rdf = pd.concat(dfs, axis=0)
     # Return concatenated dataframes.
@@ -213,15 +215,15 @@ def get_topics_quotes(topics, response=None, limit=PAGE_LIMIT):
 # FIND NEW QUOTES
 #--------------------------------------------------------------------
 
-def populate_quotes_table (limit=PAGE_LIMIT, max_topics=5):
+def populate_quotes_table (limit=PAGE_LIMIT, max_topics=10):
     topics = get_all_bq_topics()
     count = 0
     while len(topics) > max_topics:
         next_topics = topics[:max_topics]
         df = get_topics_quotes(next_topics, limit=limit)
         add_topic_quotes_1(df)
-        print ('Quotes processed: ' + str(df.shape[0]))
-        topics = topics[100:]
+        print ('Adding Quotes to DB: ' + str(df.shape[0]))
+        topics = topics[max_topics:]
         count += max_topics
         print ('Topics processed: ' + str(count))
         time.sleep(10)
