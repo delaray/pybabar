@@ -423,6 +423,8 @@ def vertex_row_name(vertex_row):
     return vertex_row[1]
 
 #------------------------------------------------------------------------------
+# Find Topics
+#------------------------------------------------------------------------------
 
 # Returns a list of vertex names
 
@@ -451,7 +453,6 @@ def find_all_topics ():
 def find_topic_names(vertex_pattern, conn=None):
     rows = find_topics(vertex_pattern, conn)
     return [row[1] for row in rows] if rows != [] else []
-
 
 #------------------------------------------------------------------------------
 #  Identifying Root Topics
@@ -1329,7 +1330,7 @@ def count_dictionary_words(conn=None):
 
 #------------------------------------------------------------------------------
 
-def count_word_definitons(conn=None):
+def count_word_definitions(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
     result = run_query ("SELECT count(*) from " + DICTIONARY_TABLE + \

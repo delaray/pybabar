@@ -192,14 +192,20 @@ def extract_definition(html):
 
 def get_word_definition(word, response=None):
     response = ensure_response(word, response)
-    html = response.content
-    if html is not None:
-        definition = extract_definition(html)
-        definition = definition.replace("'", "")
-        definition = definition.replace("\`", "")
-        return definition
+    if response is not None:
+        html = response.content
+        if html is not None:
+            definition = extract_definition(html)
+            if definition is not None:
+                definition = definition.replace("'", "")
+                definition = definition.replace("\`", "")
+                return definition
+            else:
+                return None
+        else:
+            return None
     else:
-        return None
+        return None 
 
 #--------------------------------------------------------------------
 # Get Word Properties
@@ -249,6 +255,7 @@ def add_word_to_lexicon(word):
 # Database Operations
 #--------------------------------------------------------------------
 
+
 # This scrapes Merriam Webster deinitions.
 
 def update_word_definitions():
@@ -270,6 +277,10 @@ def update_word_definitions():
 #********************************************************************
 # Part 3: Finding new words.
 #********************************************************************
+
+# Dictionary count: 176,995
+
+# Quotes count: 445,948
 
 # Retrieves the paragraphs of a wikipedia topic and scans them into
 # adding those words and their derived words into the dictionary.

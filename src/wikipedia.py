@@ -1,17 +1,24 @@
 #********************************************************************************
 # Wikipedia Scraping Tools
+#
+# Part 1: Wikipedia Paragraphs
+# Part 2: Wikipedia Sentences
+#
 #********************************************************************************
 
 # Python imports
 import os
-from bs4 import BeautifulSoup, SoupStrainer
+import re
 import pandas as pd
+from functools import reduce
+from bs4 import BeautifulSoup, SoupStrainer
 
 # Project imports
 from src.utils import make_data_pathname
 from src.utils import tokenize_text
 from src.scraper import get_url_response
 from src.scraper import get_url_data
+from src.database import find_topic_out_neighbors
 
 #--------------------------------------------------------------------
 # Basic Tools
@@ -29,6 +36,9 @@ def ensure_response(topic, response=None):
         response = get_url_response(topic_url)
     return response
 
+#********************************************************************************
+# Part 1: Wikipedia Paragraphs
+#********************************************************************************
 
 #--------------------------------------------------------------------
 # Get Wikipedia First Paragraph 
@@ -85,7 +95,34 @@ def scan_wikipedia_topic(topic, response=None):
             results.append(list(tokens))
         return results
     return None
-   
+
+#********************************************************************************
+# Part 2: Wikipedia Sentences
+#********************************************************************************
+
+# Return a list of sentences of the first wikipedia paragraph. Remove
+# references, newlines & empty sentences.
+
+def get_topic_sentences(topic):
+    paragraph = get_wikipedia_first_paragraph(topic)
+    sentences = paragraph.split('.')
+    result = map(lambda x: re.sub('\[\d+\]', '', x), sentences)
+    result = list(map(lambda x: x.replace('\n', ''), result))
+    if '' in result:
+        result.remove('')
+    return result
+
+#--------------------------------------------------------------------
+
+def get_topics_sentences(topics):
+    return reduce(lambda x, y: x + y, map(get_topic_sentences, topics))
+
+#--------------------------------------------------------------------
+
+def get_neighbors_sentences(topic):
+    topics = [topic] + find_topic_out_neighbors(topic)
+    return get_topics_sentences(topics)
+
 #--------------------------------------------------------------------
 # End of File
 #--------------------------------------------------------------------
