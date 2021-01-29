@@ -1,4 +1,4 @@
-#***********************************************************************
+o#***********************************************************************
 # Miscellaneous Utility Functions
 #***********************************************************************
 
@@ -7,12 +7,16 @@ import os
 import re
 from functools import reduce
 from itertools import chain, zip_longest
+from multiprocessing import Process, Manager, freeze_support
+from multiprocessing import Pool
 
 # Data science imports
 import nltk
 import numpy as np
 import pandas as pd
 
+# Processes
+from src.processes import pworker
 
 #--------------------------------------------------------------------
 # Project Directory and Pathnames
@@ -316,15 +320,29 @@ def invent_text(df, method='halving', limit=100000):
     print ('Total invented training data: ' + str(results_df.shape[0]))
     return results_df
 
-#-------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
 # Clean Sentence
-#-------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
 
 # Defined for convenience. Tokenizes then the reasembles.
 
 def clean_sentence (s):
     tokens = tokenize_text(s)
     return ' '.join(tokens)
+
+#**********************************************************************************
+# Part 3: Parallel Processing
+#**********************************************************************************
+
+#------------------------------------------------------------------------
+# PMAP
+#------------------------------------------------------------------------
+
+# Process four quadrants of the matrix in parallel.
+
+def pmap (fn, entries):
+    with Pool(5) as p:
+        return p.map(fn, entries)
 
 #--------------------------------------------------------------------
 # End of File

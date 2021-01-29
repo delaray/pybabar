@@ -9,7 +9,13 @@
 import src.database as db
 import src.clustering as cs
 
-#------------------------------------------------------------------------------
+#------------------------------------------------------------------------
+
+def pworker (fn, entries, pn, return_dict):
+    result = map(fn, entries)
+    return_dict[pn] = result
+
+#------------------------------------------------------------------------
 
 def neighbor_worker (topic, tables, procnum, return_dict):
     results = db._find_topic_in_neighbors (topic, tables)

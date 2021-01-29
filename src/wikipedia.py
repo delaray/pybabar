@@ -52,10 +52,13 @@ def get_wikipedia_first_paragraph (topic, response=None):
     paragraphs = soup.find_all('p')
     index = 0
     for i in range(10):
-        if paragraphs[i].find_all('b') != []:
-            break
+        if len(paragraphs) > i:
+            if paragraphs[i].find_all('b') != []:
+                break
+            else:
+                index += 1
         else:
-            index += 1
+            return None
     if paragraphs != [] and len(paragraphs) >= index:
         return paragraphs[index].text
     else:
@@ -67,7 +70,7 @@ def get_wikipedia_first_paragraph (topic, response=None):
 
 # Look for all <p>'s then select first one containing <b>.
 
-def get_wikipedia_all_paragraphs (topic, response=None):
+def get_wikipedia_paragraphs (topic, response=None):
     response = ensure_response(topic, response)
     soup = BeautifulSoup(response.content, 'lxml')
     paragraphs = soup.find_all('p')
@@ -85,7 +88,7 @@ def get_wikipedia_all_paragraphs (topic, response=None):
 
 def scan_wikipedia_topic(topic, response=None):
     response = ensure_response(topic, response)
-    paragraphs = get_wikipedia_all_paragraphs (topic, response)
+    paragraphs = get_wikipedia_paragraphs (topic, response)
     if paragraphs is not None:
         results = []
         for p in paragraphs:
@@ -104,13 +107,20 @@ def scan_wikipedia_topic(topic, response=None):
 # references, newlines & empty sentences.
 
 def get_topic_sentences(topic):
-    paragraph = get_wikipedia_first_paragraph(topic)
-    sentences = paragraph.split('.')
-    result = map(lambda x: re.sub('\[\d+\]', '', x), sentences)
-    result = list(map(lambda x: x.replace('\n', ''), result))
-    if '' in result:
-        result.remove('')
-    return result
+    print ("Topic: " + topic)
+    paragraphs = get_wikipedia_paragraphs(topic)
+    if paragraphs is not None:
+        results = []
+        for paragraph in paragraphs:
+            sentences = paragraph.split('.')
+            result = map(lambda x: re.sub('\[\d+\]', '', x), sentences)
+            result = list(map(lambda x: x.replace('\n', ''), result))
+            if '' in result:
+                result.remove('')
+            results +=  result
+        return results
+    else:
+        return []
 
 #--------------------------------------------------------------------
 
