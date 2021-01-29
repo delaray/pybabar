@@ -817,36 +817,38 @@ def add_wiki_vertices(vertices, conn=None):
 
 #------------------------------------------------------------------------------
 
-def update_vertex_weight(vertex_id, conn=None, commit=False):
-    conn = ensure_connection(conn)
-    weight = count_vertex_out_neighbors (vertex_name, conn=conn)
-    cur = conn.cursor()
-    try:
-        cur.execute("UPDATE " + VERTICES_TABLE + " SET weight = " + str(weight) + \
-                    "WHERE id=" + str(vertex_id) + ";")
-        if commit==True:
-            conn.commit()
-        return weight
-    except Exception as err:
-        print ("Failed to update vertex weight for vertex: " + str(vertex_id))
-        return None
+# NB: Topic weights are now indegree+outdegree.
+
+# def update_vertex_weight(vertex_id, conn=None, commit=False):
+#     conn = ensure_connection(conn)
+#     weight = count_vertex_out_neighbors (vertex_name, conn=conn)
+#     cur = conn.cursor()
+#     try:
+#         cur.execute("UPDATE " + VERTICES_TABLE + " SET weight = " + str(weight) + \
+#                     "WHERE id=" + str(vertex_id) + ";")
+#         if commit==True:
+#             conn.commit()
+#         return weight
+#     except Exception as err:
+#         print ("Failed to update vertex weight for vertex: " + str(vertex_id))
+#         return None
 
 #------------------------------------------------------------------------------
 
-def update_all_vertex_weights ():
-    count = 0
-    for symbol in edge_tables_suffixes():
-        rows = find_topic_names(symbol + '%')
-        print ("Processinng " + str(len(vertices)) + " vertices starting with " +\
-               symbol + "...")
-        conn = ensure_connection()
-        for row in rows:
-            if count%10000==0:
-                print ("Processed " + str(count) + " vertices.")
-            vertex_id = row[0]
-            update_vertex_weight (vertex_id, conn=conn, commit=False)
-            count += 1
-        conn.commit()
+# def update_all_vertex_weights ():
+#     count = 0
+#     for symbol in edge_tables_suffixes():
+#         rows = find_topic_names(symbol + '%')
+#         print ("Processinng " + str(len(vertices)) + " vertices starting with " +\
+#                symbol + "...")
+#         conn = ensure_connection()
+#         for row in rows:
+#             if count%10000==0:
+#                 print ("Processed " + str(count) + " vertices.")
+#             vertex_id = row[0]
+#             update_vertex_weight (vertex_id, conn=conn, commit=False)
+#             count += 1
+#         conn.commit()
 
 #------------------------------------------------------------------------------
 # Root Vertex Table INSERT operations
@@ -964,35 +966,34 @@ def update_root_edge_types():
     rows = cur.fetchall()
     print ('\nTotal root vertices: ' + str(count_root_vertices()))
 
-    # Update those vertices that have a category in the dictionary.
+    # Get the strongly related neighbors of each vertex and
+    # update the corresponding edge types in both directions.
     count = 0
     for row in rows:
         topic1_id = row[0]
         topic1 = row[1]
-        topics = stro
-        if word_entry is not None:
-            topic1 = row[1]
-            letter1 = source_name_letter(source_name)
-            edge_table1 = edge_table_name(letter1)
-            topics = compute_strongly_related_neighbors(topic1)
-            for topic2 in topics:
-                topic2_id = find_topic_id(topic2)
-                letter2 = source_name_letter(source_name)
-                edge_table2 = edge_table_name(letter2)
-                query1 = "UPDATE " + edge_table1 + \
-                        " SET type='strongly related' " + \
-                        " WHERE source=" + str(topic1_id) + \
-                        " AND target=" + str(topic2_id) + ";"
-                query2 = "UPDATE " + edge_table2 + \
-                        " SET type='strongly related' " + \
-                        " WHERE source=" + str(topic2_id) + \
-                        " AND target=" + str(topic1_id) + ";"
-                cur.execute(query1)
-                cur.execute(query2)
-                conn.commit()
-                count += 1
-                if count%100==0:
-                    print ("Root topics updated: " + str(count))
+        letter1 = source_name_letter(topic1)
+        edge_table1 = edge_table_name(letter1)
+        topics = compute_strongly_related_neighbors(topic1)
+        for topic2 in topics:
+            topic2_id = find_topic_id(topic2)
+            letter2 = source_name_letter(topic2)
+            edge_table2 = edge_table_name(letter2)
+            query1 = "UPDATE " + edge_table1 + \
+                     " SET type='strongly related' " + \
+                     " WHERE source=" + str(topic1_id) + \
+                     " AND target=" + str(topic2_id) + ";"
+            query2 = "UPDATE " + edge_table2 + \
+                     " SET type='strongly related' " + \
+                     " WHERE source=" + str(topic2_id) + \
+                     " AND target=" + str(topic1_id) + ";"
+            cur.execute(query1)
+            cur.execute(query2)
+        conn.commit()
+        count += 1
+        if count%100==0:
+            print ("Root topics updated: " + str(count))
+    conn.close()
     return True
 
 #------------------------------------------------------------------------------
