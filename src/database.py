@@ -11,7 +11,7 @@
 # Part 6: Vertex and Edge Types
 # Part 7: Root Subtopics Tables
 # Part 8: Lexicon Tables
-# Part 9: Quotes Tables
+#
 #
 #*****************************************************************************
 # DUMPING AND RESTORING THE DATABASE
@@ -175,7 +175,7 @@ def split_list (a, n):
 #------------------------------------------------------------------------------
 
 VERTICES_TABLE = 'wiki_vertices'
-ROOT_VERTICES_TABLE='root_topics'
+ROOT_TOPICS_TABLE='root_topics'
 edge_table_prefix = 'wiki_edges_'
 
 #------------------------------------------------------------------------------
@@ -231,7 +231,7 @@ def create_vertices_table_indexes(conn):
 
 # NB: The priimary key will be a vertex id from the vertex table.
 
-root_vertices_str = "CREATE TABLE " + ROOT_VERTICES_TABLE + \
+root_vertices_str = "CREATE TABLE " + ROOT_TOPICS_TABLE + \
                     "(id integer NOT NULL, " + \
                       "name character varying, " + \
                       "weight integer DEFAULT 0, " + \
@@ -244,7 +244,7 @@ root_vertices_str = "CREATE TABLE " + ROOT_VERTICES_TABLE + \
 def create_root_vertices_table(conn):
     cur = conn.cursor()
     print ("Creating Wikipedia Vertices Table...")
-    cur.execute("DROP TABLE IF EXISTS " + ROOT_VERTICES_TABLE + ";")
+    cur.execute("DROP TABLE IF EXISTS " + ROOT_TOPICS_TABLE + ";")
     cur.execute(root_vertices_str)
     conn.commit()
 
@@ -252,7 +252,7 @@ def create_root_vertices_table(conn):
 
 def create_root_vertices_table_indexes(conn):
     cur = conn.cursor()
-    cur.execute("CREATE INDEX ON " + ROOT_VERTICES_TABLE + " ((lower(name)));")
+    cur.execute("CREATE INDEX ON " + ROOT_TOPICS_TABLE + " ((lower(name)));")
     conn.commit()
 
 #------------------------------------------------------------------------------
@@ -271,7 +271,7 @@ root_fields = "(id, name, weight, outdegree)"
 def add_root_vertex(row, conn=None, commit=False):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    query = "INSERT INTO " + ROOT_VERTICES_TABLE + " " + root_fields + \
+    query = "INSERT INTO " + ROOT_TOPICS_TABLE + " " + root_fields + \
            " VALUES " + row_to_str(row) + ";"
     try:
         cur.execute(query)
@@ -285,7 +285,7 @@ def add_root_vertex(row, conn=None, commit=False):
 #------------------------------------------------------------------------------
 
 def count_root_vertices(conn=None):
-    return count_table_rows(ROOT_VERTICES_TABLE)
+    return count_table_rows(ROOT_TOPICS_TABLE)
 
 #------------------------------------------------------------------------------
 # Dumpings Tables as CSVs
@@ -491,7 +491,7 @@ def identify_root_vertices (pattern, conn=None):
 def get_root_vertices(conn=None):
     conn = ensure_connection(conn)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + ";")
+    cur.execute("SELECT * FROM " + ROOT_TOPICS_TABLE + ";")
     rows = cur.fetchall()
     return rows
 
@@ -503,7 +503,7 @@ def find_root_topic(vertex_name, conn=None):
     else:
         conn = ensure_connection(conn)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " " + \
+        cur.execute("SELECT * FROM " + ROOT_TOPICS_TABLE + " " + \
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
         return rows[0] if rows != [] else None
@@ -515,7 +515,7 @@ def find_root_topic(vertex_name, conn=None):
 def find_root_topic_by_name(topic_name):
     conn = ensure_connection()
     cur = conn.cursor()
-    query = "SELECT * FROM " + ROOT_VERTICES_TABLE  + \
+    query = "SELECT * FROM " + ROOT_TOPICS_TABLE  + \
             " WHERE LOWER(name)=LOWER('" + topic_name + "');"
     cur.execute(query)
     rows = cur.fetchall()
@@ -543,7 +543,7 @@ def find_edge_by_id(edge_table, source_id, target_id, conn=None):
     if rows==[]:
         return None
     else:
-        return rows
+        return rows[0]
 
 #------------------------------------------------------------------------------
 
@@ -933,12 +933,76 @@ def add_wiki_edges(source_name, target_names, edge_type='related', conn=None):
 # Part 6: Vertex and Edge Types
 #*****************************************************************************
 
+def strongly_related_p (topic1, topic2):
+    edge1 = find_edge(topic1, topic2)
+    edge2 = find_edge(topic2, topic1)
+    if edge1 is not None and edge2 is not None:
+        return True
+    else:
+        return False
+
+#------------------------------------------------------------------------------
+
+def compute_strongly_related_neighbors(topic1):
+    topics = find_topic_out_neighbors(topic1)
+    results = []
+    for x in topics:
+        if strongly_related_p(topic1, x):
+            print(x)
+            results.append(x)
+    return results
+
+    
+#------------------------------------------------------------------------------
+
+def update_root_edge_types():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    
+    # Get the root vertices
+    cur.execute("SELECT id, name FROM " + ROOT_TOPICS_TABLE + ";")
+    rows = cur.fetchall()
+    print ('\nTotal root vertices: ' + str(count_root_vertices()))
+
+    # Update those vertices that have a category in the dictionary.
+    count = 0
+    for row in rows:
+        topic1_id = row[0]
+        topic1 = row[1]
+        topics = stro
+        if word_entry is not None:
+            topic1 = row[1]
+            letter1 = source_name_letter(source_name)
+            edge_table1 = edge_table_name(letter1)
+            topics = compute_strongly_related_neighbors(topic1)
+            for topic2 in topics:
+                topic2_id = find_topic_id(topic2)
+                letter2 = source_name_letter(source_name)
+                edge_table2 = edge_table_name(letter2)
+                query1 = "UPDATE " + edge_table1 + \
+                        " SET type='strongly related' " + \
+                        " WHERE source=" + str(topic1_id) + \
+                        " AND target=" + str(topic2_id) + ";"
+                query2 = "UPDATE " + edge_table2 + \
+                        " SET type='strongly related' " + \
+                        " WHERE source=" + str(topic2_id) + \
+                        " AND target=" + str(topic1_id) + ";"
+                cur.execute(query1)
+                cur.execute(query2)
+                conn.commit()
+                count += 1
+                if count%100==0:
+                    print ("Root topics updated: " + str(count))
+    return True
+
+#------------------------------------------------------------------------------
+
 def update_root_vertex_types():
     conn = ensure_connection()
     cur = conn.cursor()
     
-    # Get the Untypedrot vertices
-    cur.execute("SELECT * FROM " + ROOT_VERTICES_TABLE + " WHERE type IS NULL;")
+    # Get the Untyped root vertices
+    cur.execute("SELECT id, name FROM " + ROOT_TOPICS_TABLE + " WHERE type IS NULL;")
     rows = cur.fetchall()
     print ('\nTotal root vertices: ' + str(count_root_vertices()))
     print ('Untyped root vertices: ' + str(len(rows)) + '\n')
@@ -948,10 +1012,10 @@ def update_root_vertex_types():
     for row in rows:
         word_entry = find_dictionary_word(row[1])
         if word_entry is not None:
-            id = word_entry[0]
+            id = row[0]
             word_type = word_entry[4]
             if type != '' or type=='NIL':
-                query = "UPDATE " + ROOT_VERTICES_TABLE + " SET type='" + word_type + \
+                query = "UPDATE " + ROOT_TOPICS_TABLE + " SET type='" + word_type + \
                         "' WHERE id=" + str(id) + ";"
                 cur.execute(query)
                 conn.commit()
