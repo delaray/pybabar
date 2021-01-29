@@ -950,7 +950,6 @@ def compute_strongly_related_neighbors(topic1):
     results = []
     for x in topics:
         if strongly_related_p(topic1, x):
-            print(x)
             results.append(x)
     return results
 
