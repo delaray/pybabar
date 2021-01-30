@@ -441,6 +441,25 @@ def find_topics(vertex_pattern, conn=None):
 
 #------------------------------------------------------------------------------
 
+def find_potential_subtopics(topic, conn=None):
+    if "'" in topic:
+        return None
+    else:
+        p1 = "%\_" + topic.lower() + "\_%"
+        p2 = "%\_" + topic.lower()
+        p3 = topic.lower() + "\_%"
+        conn = ensure_connection(conn)
+        cur = conn.cursor()
+        query = "SELECT * FROM " + VERTICES_TABLE + " " + \
+                "WHERE LOWER(name) like '" + p1 + "' " + \
+                "OR LOWER(name) like '" + p2 + "' " + \
+                "OR LOWER(name) like '" + p3 + "'; "
+        cur.execute(query)
+        rows = cur.fetchall()
+        return  rows
+
+#------------------------------------------------------------------------------
+
 def find_all_topics ():
     conn = ensure_connection()
     cur = conn.cursor()

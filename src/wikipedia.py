@@ -19,6 +19,7 @@ from src.utils import tokenize_text
 from src.scraper import get_url_response
 from src.scraper import get_url_data
 from src.database import find_topic_out_neighbors
+from src.database import find_potential_subtopics
 
 #--------------------------------------------------------------------
 # Basic Tools
@@ -72,11 +73,14 @@ def get_wikipedia_first_paragraph (topic, response=None):
 
 def get_wikipedia_paragraphs (topic, response=None):
     response = ensure_response(topic, response)
-    soup = BeautifulSoup(response.content, 'lxml')
-    paragraphs = soup.find_all('p')
-    results = [p for p in paragraphs if len(p.text) > 25]
-    if results != []:
-        return [r.text for r in results]
+    if response is not None:
+        soup = BeautifulSoup(response.content, 'lxml')
+        paragraphs = soup.find_all('p')
+        results = [p for p in paragraphs if len(p.text) > 25]
+        if results != []:
+            return [r.text for r in results]
+        else:
+            return None
     else:
         return None
 
@@ -107,7 +111,7 @@ def scan_wikipedia_topic(topic, response=None):
 # references, newlines & empty sentences.
 
 def get_topic_sentences(topic):
-    print ("Topic: " + topic)
+    # print ("Topic: " + topic)
     paragraphs = get_wikipedia_paragraphs(topic)
     if paragraphs is not None:
         results = []
@@ -132,6 +136,27 @@ def get_topics_sentences(topics):
 def get_neighbors_sentences(topic):
     topics = [topic] + find_topic_out_neighbors(topic)
     return get_topics_sentences(topics)
+
+#********************************************************************
+# Part 3: Wikipedia Training Data 
+#********************************************************************
+
+def generate_topic_training_data (topic):
+    data = []
+    print ('Processing topic: ' + topic)
+    sentences = get_topic_sentences(topic)
+    for sentence in sentences:
+        data.append([sentence, topic, topic])
+    neighbors = find_potential_subtopics(topic)
+    print ('Neighbor count: ' + str(len(neighbors)))
+    for neighbor in neighbors:
+        neighbor = neighbor[1]
+        print ('Processing topic: ' + neighbor)
+        sentences = get_topic_sentences(neighbor)
+        for sentence in sentences:
+            data.append([topic, neighbor, sentence])
+    df = pd.DataFrame(data, columns = ['topic', 'subtopic', 'sentence'])
+    return df
 
 #--------------------------------------------------------------------
 # End of File
