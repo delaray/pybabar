@@ -141,9 +141,8 @@ def get_neighbors_sentences(topic):
 # Part 3: Wikipedia Training Data 
 #********************************************************************
 
-def generate_topic_training_data (topic):
+def compute_topic_training_data (topic):
     data = []
-    print ('Processing topic: ' + topic)
     sentences = get_topic_sentences(topic)
     for sentence in sentences:
         data.append([sentence, topic, topic])
@@ -151,11 +150,40 @@ def generate_topic_training_data (topic):
     print ('Neighbor count: ' + str(len(neighbors)))
     for neighbor in neighbors:
         neighbor = neighbor[1]
-        print ('Processing topic: ' + neighbor)
+        # print ('Processing topic: ' + neighbor)
         sentences = get_topic_sentences(neighbor)
         for sentence in sentences:
             data.append([topic, neighbor, sentence])
     df = pd.DataFrame(data, columns = ['topic', 'subtopic', 'sentence'])
+    return df
+
+
+#--------------------------------------------------------------------
+# Compute Topics Training Data
+#--------------------------------------------------------------------
+
+def compute_topics_training_data(topics):
+    rdf = None
+    dfs = []
+    for topic in topics:
+        print ('Processing topic: ' + topic)
+        df = compute_topic_training_data(topic)
+        dfs.append(df)
+    rdf = pd.concat(dfs, axis=0)
+    return rdf
+
+
+#--------------------------------------------------------------------
+# Generate Topics Training Data
+#--------------------------------------------------------------------
+
+TRAINING_DATA_FILE = make_data_pathname('training_data.csv')
+
+TOPICS = ["Art", "Science", "History"]
+
+def generate_topics_training_data(topics, file=TRAINING_DATA_FILE):
+    df = compute_topics_training_data(topics)
+    df.to_csv(file, index=False)
     return df
 
 #--------------------------------------------------------------------
