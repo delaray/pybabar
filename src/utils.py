@@ -349,7 +349,7 @@ def concat_dfs (dfs):
     
     # Iterate though the columns:
     for col in column_names:
-        extracted = (frame[col] for frame in frames)
+        extracted = (frame[col] for frame in dfs)
          # Flatten and save to df_dict
         df_dict[col] = fast_flatten(extracted)
 

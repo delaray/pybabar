@@ -172,6 +172,7 @@ def compute_topics_training_data(topics):
         df = compute_topic_training_data(topic)
         dfs.append(df)
     rdf = concat_dfs(dfs)
+    # rdf = pd.concat_dfs(dfs, axis=0)
     rdf.reset_index(inplace=True)
     return rdf
 

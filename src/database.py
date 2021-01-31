@@ -190,12 +190,17 @@ edge_table_prefix = 'wiki_edges_'
 def edge_tables_suffixes():
     return list(string.ascii_lowercase) + list(map(str, [0,1,2,3,4,5,6,7,8,9]))
 
+EDGE_SUFFIXES = edge_tables_suffixes()
+
 #------------------------------------------------------------------------------
 
 def source_name_letter (name):
-    letter = name[0].lower()
-    if letter in edge_tables_suffixes():
-        return letter
+    if len(name) > 0:
+        letter = name[0].lower()
+        if letter in EDGE_SUFFIXES:
+            return letter
+        else:
+            return 'z'
     else:
         return 'z'
 
@@ -398,6 +403,16 @@ def find_topic(vertex_name, conn=None):
                     "WHERE LOWER(name)=LOWER('" + vertex_name + "');")
         rows = cur.fetchall()
         return rows[0] if rows != [] else None
+
+#------------------------------------------------------------------------------
+
+def find_topic_by_id(id, conn=None):
+    conn = ensure_connection(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM " + VERTICES_TABLE + " " + \
+                "WHERE id=" + str(id) + ";")
+    rows = cur.fetchall()
+    return rows[0] if rows != [] else None
 
 #------------------------------------------------------------------------------
     
@@ -638,12 +653,12 @@ def count_topic_out_neighbors(topic, conn=None):
 
 #------------------------------------------------------------------------------
 
-def count_topic_extended_out_neighbors(topic):
-    conn = ensure_connection()
-    neighbors = find_topic_out_neighbors(topic, conn)
-    count = len(neighbors)
-    extented_counts = map(lambda x: count_topic_out_neighbors(x, conn), neighbors)
-    return count + apply(+, extented_counts)
+# def count_topic_extended_out_neighbors(topic):
+#     conn = ensure_connection()
+#     neighbors = find_topic_out_neighbors(topic, conn)
+#     count = len(neighbors)
+#     extented_counts = map(lambda x: count_topic_out_neighbors(x, conn), neighbors)
+#     return count + apply(+, extented_counts)
  
 #------------------------------------------------------------------------------
 # Topic In Neighbors
@@ -991,6 +1006,47 @@ def compute_strongly_related_neighbors(topic1):
     
 #------------------------------------------------------------------------------
 
+def update_strongly_related_edges():
+    conn = ensure_connection()
+    cur = conn.cursor()
+    count = 0
+
+    for letter in EDGE_SUFFIXES:
+
+        print ('\n\nProcessing letter: ' + str(letter) + '...')
+        table1 = edge_table_name(letter)
+        query = "SELECT id, source, target FROM " + table1 + \
+                " WHERE LOWER(type)='related'"
+        cur.execute(query)
+        edges = cur.fetchall()
+        for edge1 in edges:
+            source_id = edge1[1]
+            target_id = edge1[2]
+            target = find_topic_by_id(target_id)
+            if target is not None:
+                target_name = target[1]
+                letter2 = source_name_letter(target_name)
+                table2 = edge_table_name(letter2)
+                if find_edge_by_id(table2, target_id, source_id, conn) is not None:
+                    query1 = "UPDATE " + table1 + \
+                             " SET type='strongly related' " + \
+                             " WHERE source=" + str(source_id) + \
+                             " AND target=" + str(target_id) + ";"
+                    query2 = "UPDATE " + table2 + \
+                             " SET type='strongly related' " + \
+                             " WHERE source=" + str(target_id) + \
+                             " AND target=" + str(source_id) + ";"
+                    cur.execute(query1)
+                    cur.execute(query2)
+            count += 1
+            if count%1000==0:
+                print ('Edges processed: ' + str(count))
+        conn.commit()
+    conn.close()
+    return True
+        
+#------------------------------------------------------------------------------
+
 def update_root_edge_types():
     conn = ensure_connection()
     cur = conn.cursor()
@@ -1006,27 +1062,28 @@ def update_root_edge_types():
     for row in rows:
         topic1_id = row[0]
         topic1 = row[1]
-        letter1 = source_name_letter(topic1)
-        edge_table1 = edge_table_name(letter1)
-        topics = compute_strongly_related_neighbors(topic1)
-        for topic2 in topics:
-            topic2_id = find_topic_id(topic2)
-            letter2 = source_name_letter(topic2)
-            edge_table2 = edge_table_name(letter2)
-            query1 = "UPDATE " + edge_table1 + \
-                     " SET type='strongly related' " + \
-                     " WHERE source=" + str(topic1_id) + \
-                     " AND target=" + str(topic2_id) + ";"
-            query2 = "UPDATE " + edge_table2 + \
-                     " SET type='strongly related' " + \
-                     " WHERE source=" + str(topic2_id) + \
-                     " AND target=" + str(topic1_id) + ";"
-            cur.execute(query1)
-            cur.execute(query2)
-        conn.commit()
-        count += 1
-        if count%100==0:
-            print ("Root topics updated: " + str(count))
+        if len(topic1) > 0:
+            letter1 = source_name_letter(topic1)
+            edge_table1 = edge_table_name(letter1)
+            topics = compute_strongly_related_neighbors(topic1)
+            for topic2 in topics:
+                topic2_id = find_topic_id(topic2)
+                letter2 = source_name_letter(topic2)
+                edge_table2 = edge_table_name(letter2)
+                query1 = "UPDATE " + edge_table1 + \
+                         " SET type='strongly related' " + \
+                         " WHERE source=" + str(topic1_id) + \
+                         " AND target=" + str(topic2_id) + ";"
+                query2 = "UPDATE " + edge_table2 + \
+                         " SET type='strongly related' " + \
+                         " WHERE source=" + str(topic2_id) + \
+                         " AND target=" + str(topic1_id) + ";"
+                cur.execute(query1)
+                cur.execute(query2)
+            conn.commit()
+            count += 1
+            if count%100==0:
+                print ("Root topics updated: " + str(count))
     conn.close()
     return True
 
