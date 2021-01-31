@@ -331,9 +331,32 @@ def clean_sentence (s):
     return ' '.join(tokens)
 
 #**********************************************************************************
-# Part 3: Parallel Processing
+# Part 3: Fast Alternatives
 #**********************************************************************************
 
+#------------------------------------------------------------------------
+# Fast DataFrame concatenation
+#------------------------------------------------------------------------
+
+def fast_flatten(input_list):
+    return list(chain.from_iterable(input_list))
+
+def concat_dfs (dfs):
+    column_names = dfs[0].columns
+    
+    # Now, construct a dictionary from the column names:
+    df_dict = dict.fromkeys(column_names, [])
+    
+    # Iterate though the columns:
+    for col in column_names:
+        extracted = (frame[col] for frame in frames)
+         # Flatten and save to df_dict
+        df_dict[col] = fast_flatten(extracted)
+
+    # Lastly use the from_dict method to produce the combined DataFrame:
+    return  pd.DataFrame.from_dict(df_dict)[column_names]
+
+    
 #------------------------------------------------------------------------
 # PMAP
 #------------------------------------------------------------------------

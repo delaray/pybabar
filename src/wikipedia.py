@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 # Project imports
 from src.utils import make_data_pathname
 from src.utils import tokenize_text
+from src.utils import concat_dfs
 from src.scraper import get_url_response
 from src.scraper import get_url_data
 from src.database import find_topic_out_neighbors
@@ -145,7 +146,7 @@ def compute_topic_training_data (topic):
     data = []
     sentences = get_topic_sentences(topic)
     for sentence in sentences:
-        data.append([sentence, topic, topic])
+        data.append([topic, topic, sentence])
     neighbors = find_potential_subtopics(topic)
     print ('Neighbor count: ' + str(len(neighbors)))
     for neighbor in neighbors:
@@ -155,6 +156,7 @@ def compute_topic_training_data (topic):
         for sentence in sentences:
             data.append([topic, neighbor, sentence])
     df = pd.DataFrame(data, columns = ['topic', 'subtopic', 'sentence'])
+    print ('Total art related sentences: ' + str(df.shape[0]))
     return df
 
 
@@ -169,9 +171,9 @@ def compute_topics_training_data(topics):
         print ('Processing topic: ' + topic)
         df = compute_topic_training_data(topic)
         dfs.append(df)
-    rdf = pd.concat(dfs, axis=0)
+    rdf = concat_dfs(dfs)
+    rdf.reset_index(inplace=True)
     return rdf
-
 
 #--------------------------------------------------------------------
 # Generate Topics Training Data
@@ -179,7 +181,7 @@ def compute_topics_training_data(topics):
 
 TRAINING_DATA_FILE = make_data_pathname('training_data.csv')
 
-TOPICS = ["Art", "Science", "History"]
+TOPICS = ["Art", "Science"]
 
 def generate_topics_training_data(topics, file=TRAINING_DATA_FILE):
     df = compute_topics_training_data(topics)

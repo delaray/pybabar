@@ -614,14 +614,14 @@ def find_edges(source_name, edge_type=DEFAULT_EDGE_TYPE, conn=None):
 # These will necessarily be stored in the same table, so we only need to
 # query one table.
 
-def find_topic_out_neighbors(topic_name, conn=None):
+def find_topic_out_neighbors(topic, conn=None):
     conn = ensure_connection(conn)
-    topic_id = find_topic_id(topic_name, conn)
+    topic_id = find_topic_id(topic, conn)
     cur = conn.cursor()
     if topic_id == None:
         return []
     else:
-        letter = source_name_letter(topic_name)
+        letter = source_name_letter(topic)
         edge_table = edge_table_name(letter)
         cur.execute("SELECT * FROM " + edge_table + " as we " + \
                     "JOIN " + VERTICES_TABLE + " as wv on we.target = wv.id " + \
@@ -629,6 +629,22 @@ def find_topic_out_neighbors(topic_name, conn=None):
         rows = cur.fetchall()
         return list(set([row[6] for row in rows]))
 
+
+#------------------------------------------------------------------------------
+
+def count_topic_out_neighbors(topic, conn=None):
+    conn = ensure_connection(conn)
+    return len(find_topic_out_neighbors(topic))
+
+#------------------------------------------------------------------------------
+
+def count_topic_extended_out_neighbors(topic):
+    conn = ensure_connection()
+    neighbors = find_topic_out_neighbors(topic, conn)
+    count = len(neighbors)
+    extented_counts = map(lambda x: count_topic_out_neighbors(x, conn), neighbors)
+    return count + apply(+, extented_counts)
+ 
 #------------------------------------------------------------------------------
 # Topic In Neighbors
 #------------------------------------------------------------------------------
